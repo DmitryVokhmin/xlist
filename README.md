@@ -13,15 +13,17 @@ Creation of this container was inspired by rich functionality of NSArray from Ap
 ## Installation and usage
 
 ---
-
-_TODO_
+Install go module:
+```shell
+go get github.com/DmitryVokhmin/xlist
+```
 
 ## API description
 
 ---
 
 ### At - returns value at specified position.
-```Go
+```go
 At(index int) (T, bool)
 ```
 Returns Value and Ok flag: true - value is valid, false - no value
@@ -31,7 +33,7 @@ Returns Value and Ok flag: true - value is valid, false - no value
 _(experimental future)_
 
 
-```Go
+```go
 AtPtr(index int) T
 ```
 Designed specifically to work with pointers in container.
@@ -39,12 +41,12 @@ AtPtr(...) can return 'nil', so no need to return additional validity flag like 
 That makes the code easier.
 
 ### IsEmpty - returns 'true' if container is empty
-```Go
+```go
 IsEmpty() bool
 ```
 
 ### Size() - returns number of elements inside container
-```Go
+```go
 Size() int 
 ```
 
