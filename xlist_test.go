@@ -3,7 +3,6 @@ package xlist
 import (
 	"fmt"
 	"math/rand"
-
 	"sync"
 	"testing"
 	"time"

@@ -42,7 +42,6 @@ func (p *XList[T]) AtPtr(index int) T {
 }
 
 // IsEmpty : returns 'true' if container is empty
-// work with mutex
 func (p *XList[T]) IsEmpty() bool {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
@@ -55,7 +54,6 @@ func (p *XList[T]) IsEmpty() bool {
 }
 
 // isEmpty : for internal (use without mutex)
-// since mutex already used in call above
 func (p *XList[T]) isEmpty() bool {
 	if p.home == nil && p.end == nil {
 		return true
@@ -64,13 +62,17 @@ func (p *XList[T]) isEmpty() bool {
 	return false
 }
 
+// Size : returns size of container.
 func (p *XList[T]) Size() int {
 	return p.size
 }
 
+// LastObject : returns last object in container.
 func (p *XList[T]) LastObject() (T, bool) {
 	return p.At(p.size - 1)
 }
+
+// LastObjectPtr : returns last object pointer in container.
 func (p *XList[T]) LastObjectPtr() T {
 	xobj, _ := p.LastObject()
 	if reflect.ValueOf(xobj).Kind() == reflect.Ptr {
@@ -80,6 +82,7 @@ func (p *XList[T]) LastObjectPtr() T {
 	panic(fmt.Sprintf("%v, %s", xobj, ErrIsNotAPointer.Error()))
 }
 
+// Clear : clear container.
 func (p *XList[T]) Clear() {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
@@ -100,6 +103,8 @@ func (p *XList[T]) Set(objects ...T) {
 	p.Append(objects...)
 }
 
+// Append : appends 'objects' to container.
+// In case of empty objects receiver will be unchanged.
 func (p *XList[T]) Append(objects ...T) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
@@ -125,7 +130,7 @@ func (p *XList[T]) Append(objects ...T) {
 	}
 }
 
-// AppendUnique : append element if it doesn't exist.
+// AppendUnique : appends element if it doesn't exist.
 func (p *XList[T]) AppendUnique(objects ...T) {
 	var hash [32]byte
 	isObj := make(map[any]bool)
@@ -196,7 +201,7 @@ func (p *XList[T]) Contains(objects ...T) bool {
 	return true
 }
 
-// Insert : insert object before the 'pos' position
+// Insert : inserts object before the 'pos' position
 // if position is out of right range, append element - no error
 func (p *XList[T]) Insert(pos int, objects ...T) error {
 	if pos < 0 || pos > p.size {
@@ -256,7 +261,7 @@ func (p *XList[T]) Insert(pos int, objects ...T) error {
 	return nil
 }
 
-// Replace : replace element at position 'pos' to 'obj'.
+// Replace : replaces element at position 'pos' to 'obj'.
 // Returns 'true' if replaced, 'false' if not
 func (p *XList[T]) Replace(pos int, obj T) error {
 	p.mtx.Lock()
