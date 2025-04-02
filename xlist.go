@@ -32,7 +32,8 @@ type XList[T any] struct {
 
 	// Work params ----
 
-	// make deep copy of containing objects (true) or use pointers to the same objects (false)
+	// false - make deep copy of containing objects
+	// true - make shallow copy (use pointers)
 	shallowCopy bool
 
 	// Sort mutex

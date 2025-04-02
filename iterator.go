@@ -22,6 +22,8 @@ func (p *XList[T]) Iterator(workRange ...int) *Iterator[T] {
 	return &Iterator[T]{parent: p, index: -1, start: -1, finish: -1}
 }
 
+// Reset - resets the iterator with a new range of work.
+// If empty, the iterator is reset to pass from the first to the last of the container elements.
 func (p *Iterator[T]) Reset(workRange ...int) {
 	p.lobj = nil
 	p.index = -1
@@ -67,6 +69,7 @@ func (p *Iterator[T]) setInitialBackward() {
 	}
 }
 
+// SetIndex : sets the iterator to the specified index.
 func (p *Iterator[T]) SetIndex(index int) (T, bool) {
 	p.setInitial()
 
@@ -148,7 +151,7 @@ func (p *Iterator[T]) Value() (T, bool) {
 	return *p.lobj.obj, true
 }
 
-func (p *Iterator[T]) SetNext() bool {
+func (p *Iterator[T]) Next() bool {
 	if p.lobj == nil {
 		p.setInitialForward()
 
@@ -165,7 +168,7 @@ func (p *Iterator[T]) SetNext() bool {
 	return true
 }
 
-func (p *Iterator[T]) SetPrev() bool {
+func (p *Iterator[T]) Prev() bool {
 	if p.lobj == nil {
 		p.setInitialBackward()
 

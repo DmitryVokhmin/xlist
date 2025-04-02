@@ -11,7 +11,8 @@ import (
 	"reflect"
 )
 
-// ------ Core functional ------
+// ------ Core functions ------
+//TODO: add list.DoDeepCopy(), list.DoShallowCopy()
 
 // At : returns value at specified position.
 // Returns Value and Ok flag: true - value is valid, false - no value
@@ -462,6 +463,8 @@ func (p *XList[T]) MoveAtPos(pos int, dList *XList[T]) error {
 	return nil
 }
 
+// Copy : returns a copy of the list.
+// If shallowCopy is true, the objects are not copied, only the references.
 func (p *XList[T]) Copy() *XList[T] {
 	if p.isEmpty() {
 		return &XList[T]{}
