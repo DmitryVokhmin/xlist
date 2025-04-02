@@ -275,10 +275,6 @@ if err = list.Replace(8, obj); err != nil {
 
 
 
-
- ## **************************************************************
-
-
 ### ReplaceLast(T)
 #### *replaces last element in the container*
 
