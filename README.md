@@ -2,7 +2,6 @@
 
 ## Introduction
 
----
 
 Xlist is a container that represents a classic doubly linked list, where each element is connected to the previous and next ones. 
 This kind of container is efficient for storing and sequential elements processing.
@@ -12,7 +11,6 @@ Creation of this container was inspired by rich functionality of NSArray from Ap
 
 ## Installation and usage
 
----
 Install go module:
 ```shell
 go get github.com/DmitryVokhmin/xlist
@@ -35,6 +33,7 @@ list := xlist.New[int](1, 2, 3)
 fmt.Println(list.Size()) // Output: 3
 ```
 
+
 ### At( int )  
 #### *returns value at specified position*
 ```go
@@ -53,7 +52,7 @@ if ok {
 }
 ```
 
----
+
 
 ### AtPtr( int ) 
 #### *returns pointer to a value at specified position*
@@ -76,7 +75,7 @@ if value != nil {
 }
 ```
 
----
+
 
 ### IsEmpty() 
 #### *Checks if the container is empty or not.*
@@ -94,7 +93,7 @@ if list.IsEmpty() {
 }
 ```
 
----
+
 
 ### Size() 
 #### *returns number of elements inside container*
@@ -106,7 +105,7 @@ Example:
 fmt.Println("List size is", list.Size())
 ```
 
----
+
 
 ### LastObject()
 #### *returns last object in container*
@@ -124,7 +123,7 @@ if ok {
 }
 ```
 
----
+
 
 ### LastObjectPtr() 
 #### *returns last object pointer in container*
@@ -142,7 +141,7 @@ if value != nil {
 }
 ```
 
----
+
 
 ### Clear()
 #### *Clears container content*
@@ -156,7 +155,7 @@ Example:
 list.Clear()
 ```
 
----
+
 
 ### Set(...T)
 #### *set 'objects' to container*
@@ -177,7 +176,7 @@ list.Set(1, 2, 3, 4, 5)
 n := list.Size() // n == 5 
 ```
 
----
+
 
 ### Append(...T)
 #### *appends 'objects' to container*
@@ -195,7 +194,7 @@ list.Append(1, 2, 3, 4, 5)
 n := list.Size() // n == 7 
 ```
 
----
+
 
 ### AppendUnique(...T)
 #### *appends unique 'objects' to container (adds elements if they don't exist)*
@@ -215,7 +214,7 @@ list.AppendUnique(1, 2, 3, 4, 5)
 n := list.Size() // n == 6
 ```
 
----
+
 
 ### Contains(...T)
 #### *checks whether the set of objects is in the container*
@@ -234,7 +233,7 @@ if list.Contains(1, 2, 3, 4, 5) {
 } 
 ```
 
----
+
 
 ### Insert(int, ...T)
 #### *inserts 'objects' at position 'pos'*
@@ -254,7 +253,7 @@ if err = list.Insert(8, obj1, obj2, obj3, obj4, obj5); err != nil {
 }
 ```
 
----
+
 
 ### Replace(int, T)
 #### *replaces element at specified position*
@@ -274,7 +273,7 @@ if err = list.Replace(8, obj); err != nil {
 }
 ```
 
----
+
 
 
  ## **************************************************************
@@ -295,7 +294,7 @@ if err = list.ReplaceLast(newObj); err != nil {
 }
 ```
 
----
+
 
 ### DeleteAt(int)
 #### *deletes element at specified position*
@@ -315,7 +314,7 @@ if err != nil {
 }
 ```
 
----
+
 
 ### DeleteLast()
 #### *deletes last element from the container*
@@ -335,7 +334,7 @@ if err != nil {
 }
 ```
 
----
+
 
 ### Add( *XList[T] )
 #### *combines two lists and returns a new one*
@@ -354,7 +353,7 @@ combinedList := list1.Add(list2)
 // list1 and list2 remain unchanged
 ```
 
----
+
 
 ### Move( *XList[T] )
 #### *moves content from another list to the end of this list*
@@ -374,7 +373,7 @@ list1.Move(list2)
 // list2 is now empty
 ```
 
----
+
 ### MoveAtPos( int, *XList[T] )
 #### *inserts content from another list at specified position*
 ```Go
@@ -398,7 +397,7 @@ if err != nil {
 }
 ```
 
----
+
 
 ### Copy()
 #### *creates a copy of the list*
@@ -421,7 +420,7 @@ shallowCopyList := list.Copy() // shallow copy
 // shallowCopyList contains [1, 2, 3, 4, 5]
 ```
 
----
+
 
 ### CopyRange( int, int )
 #### *creates a copy of a range of elements*
@@ -444,7 +443,7 @@ if err != nil {
 }
 ```
 
----
+
 
 ### Swap( int, int )
 #### *swaps two elements in the list*
@@ -465,7 +464,7 @@ if err != nil {
 }
 ```
 
----
+
 ## Marking Methods
 Container element marking methods allow working with groups of objects without implementing additional logic.
 
@@ -485,7 +484,7 @@ list.MarkAtIndex(2)
 fmt.Println(list.IsMarkedAtIndex(2)) // Output: true
 ```
 
----
+
 
 ### UnmarkAtIndex( int )
 #### *unmarks an element at the specified index*
@@ -504,7 +503,7 @@ list.UnmarkAtIndex(2)
 fmt.Println(list.IsMarkedAtIndex(2)) // Output: false
 ```
 
----
+
 
 ### IsMarkedAtIndex(int)
 #### *checks whether an element is marked at the specified index*
@@ -523,7 +522,7 @@ fmt.Println(list.IsMarkedAtIndex(2)) // Output: true
 fmt.Println(list.IsMarkedAtIndex(1)) // Output: false
 ```
 
----
+
 
 ### MarkAll()
 #### *marks all elements in the list*
@@ -544,7 +543,7 @@ fmt.Println(list.IsMarkedAtIndex(2)) // Output: true
 fmt.Println(list.IsMarkedAtIndex(3)) // Output: true
 ```
 
----
+
 
 ### UnmarkAll()
 #### *unmarks all elements in the list*
@@ -662,7 +661,7 @@ for it.Next() {
 // 4
 ```
 
----
+
 
 ### Reset( ...int )
 #### *resets the iterator with a new range of work*
@@ -706,7 +705,7 @@ for it.Next() {
 // 4
 ```
 
----
+
 
 ### SetIndex( int ) (T, bool)
 #### *sets the iterator to the specified index*
@@ -734,7 +733,7 @@ if value, ok := iter.SetIndex(2); ok {
 fmt.Println(iter.Value()) // Output: 3
 ```
 
----
+
 
 ### SetFirst()
 #### *sets the iterator to the first element of the container or work range*
@@ -768,7 +767,7 @@ iter.SetFirst()
 fmt.Println(iter.Value()) // Output: 3
 ```
 
----
+
 
 ### SetLast()
 #### *sets the iterator to the last element of the container or work range*
@@ -791,7 +790,7 @@ last, _ = iter.SetLast()
 fmt.Println(last) // Output: 4
 ```
 
----
+
 
 ### Index()
 #### *returns the current index of the iterator*
@@ -814,7 +813,7 @@ iter.Next()
 fmt.Println(iter.Index()) // Output: 1
 ```
 
----
+
 
 ### Value()
 #### *returns the current value of the iterator*
@@ -835,7 +834,7 @@ value, ok = iter.Value()
 fmt.Println(value, ok) // Output: 1 true
 ```
 
----
+
 
 ### Next()
 #### *advances the iterator to the next element*
@@ -860,7 +859,7 @@ for iter.Next() {
 // 3
 ```
 
----
+
 
 ### Prev()
 #### *moves the iterator to the previous element*
@@ -888,7 +887,7 @@ for iter.Prev() {
 // 1
 ```
 
----
+
 
 ### NextValue()
 #### *returns the next value and moves the iterator forward*
@@ -916,7 +915,7 @@ for {
 // 3
 ```
 
----
+
 
 ### PrevValue()
 #### *returns the previous value and moves the iterator backward*
@@ -947,7 +946,7 @@ for {
 // 1
 ```
 
----
+
 
 ## Bulk processing methods
 
@@ -972,7 +971,7 @@ fmt.Println(evenNumbers.AtPtr(0)) // Output: 2
 fmt.Println(evenNumbers.AtPtr(1)) // Output: 4
 ```
 
----
+
 
 ### Modify( func(int, T) T )
 #### *modifies each element in the collection*
@@ -997,7 +996,7 @@ fmt.Println(list.AtPtr(3)) // Output: 8
 fmt.Println(list.AtPtr(4)) // Output: 10
 ```
 
----
+
 
 ### ModifyRev( func(int, T) T )
 #### *modifies each element in reverse order*
@@ -1047,6 +1046,7 @@ fmt.Println(list.AtPtr(4)) // Output: 8
 ```
 
 ---
+
 
 ### Title
 #### *subtitle*
