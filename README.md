@@ -3,10 +3,18 @@
 ## Introduction
 
 
-Xlist is a container that represents a classic doubly linked list, where each element is connected to the previous and next ones. 
-This kind of container is efficient for storing and sequential elements processing.
+Xlist is a container representing a classic doubly linked list, where each element is connected to both its previous and next elements. This container is efficient for storing elements and processing them sequentially.
 
-Creation of this container was inspired by rich functionality of NSArray from Apple dev-library.  
+The creation of this container was inspired by the rich functionality of NSArray from Apple’s development library.
+
+It provides support for:
+- CRUD operations (Create, Read, Update, and Delete)
+- Managing unique container objects
+- Bulk processing (modifying container objects using closures)
+- Searching for objects
+- Highly efficient (multithreaded) sorting operations
+- Iterators for efficient sequential operations
+
 
 
 ## Installation and usage
