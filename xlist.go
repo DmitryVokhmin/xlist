@@ -23,7 +23,7 @@ type Compare[T any] interface {
 	func(a, b T) bool
 }
 
-type XList[T any] struct {
+type XList[T comparable] struct {
 	home *xlistObj[T] // first object
 	end  *xlistObj[T] // last object
 
@@ -38,7 +38,7 @@ type XList[T any] struct {
 }
 
 // element of bidirectional XList
-type xlistObj[T any] struct {
+type xlistObj[T comparable] struct {
 	next *xlistObj[T] // pointer to next element in chain
 	prev *xlistObj[T] // pointer to previous element element in chain
 	mark bool         // mark element
@@ -46,7 +46,7 @@ type xlistObj[T any] struct {
 	obj *T
 }
 
-type sortContext[T any] struct {
+type sortContext[T comparable] struct {
 	changeMtx sync.RWMutex
 	cond      *sync.Cond // wait for signal changes done
 	canRead   bool
@@ -56,13 +56,13 @@ type sortContext[T any] struct {
 }
 
 // indexPair : structure to store a pair of index and object in XList (need for sorting)
-type indexPair[T any] struct {
+type indexPair[T comparable] struct {
 	ix  int
 	obj *xlistObj[T]
 }
 
 // Iterator : optimal for sequential element passes
-type Iterator[T any] struct {
+type Iterator[T comparable] struct {
 	parent *XList[T]    // parent structure
 	index  int          // index
 	lobj   *xlistObj[T] // pointer to XList object
@@ -73,7 +73,7 @@ type Iterator[T any] struct {
 }
 
 // New : create new empty XList container
-func New[T any](objects ...T) *XList[T] {
+func New[T comparable](objects ...T) *XList[T] {
 	newList := XList[T]{
 		mtx: sync.RWMutex{},
 	}

@@ -189,30 +189,69 @@ func (p *XList[T]) AppendUnique(objects ...T) *XList[T] {
 // Contains : checks whether the set of objects (the whole set) in the list
 // it returns false if any of them not in the list.
 func (p *XList[T]) Contains(objects ...T) bool {
-	isObj := make(map[any]bool)
+	return p.containsInternal(false, objects...)
+}
 
-	p.mtx.RLock()
-	lobj := p.home
-	for lobj != nil {
-		isObj[*lobj.obj] = true
-		lobj = lobj.next
+// ContainsSome : checks whether any of objects of `objects` is in the list
+// it returns false if no one of them not in the list.
+func (p *XList[T]) ContainsSome(objects ...T) bool {
+	return p.containsInternal(true, objects...)
+}
+
+// containsInternal : internal realisation (for optimal Contains and ContainsSome)
+func (p *XList[T]) containsInternal(containsSome bool, objects ...T) bool { // nosonar
+	if len(objects) == 0 {
+		if containsSome {
+			return false // Search for nothing, find nothing.
+		}
+		return true // The empty set is a subset of every set.
 	}
-	p.mtx.RUnlock()
 
-	if len(isObj) == 0 {
+	if p.home == nil {
 		return false
 	}
 
-	for _, obj := range objects {
-		if _, found := isObj[obj]; !found {
-			return false
+	// Special case for one object
+	if len(objects) == 1 {
+		target := objects[0]
+		p.mtx.RLock()
+		defer p.mtx.RUnlock()
+
+		lobj := p.home
+		for lobj != nil {
+			if *lobj.obj == target { // direct compare T
+				return true
+			}
+			lobj = lobj.next
 		}
+		return false
 	}
 
-	return true
-}
+	lookingFor := make(map[T]struct{}, len(objects))
+	for _, obj := range objects {
+		lookingFor[obj] = struct{}{}
+	}
 
-// TODO: ContainsSome
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
+	xobj := p.home
+	for xobj != nil {
+		if _, found := lookingFor[*xobj.obj]; found {
+			if containsSome {
+				return true
+			}
+
+			delete(lookingFor, *xobj.obj)
+			if len(lookingFor) == 0 {
+				return true // all objects found
+			}
+		}
+		xobj = xobj.next
+	}
+
+	return false
+}
 
 // Insert : inserts object before the 'pos' position
 // if position is out of right range, append element - no error
