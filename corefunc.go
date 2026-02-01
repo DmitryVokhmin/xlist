@@ -12,7 +12,6 @@ import (
 )
 
 // ------ Core functions ------
-//TODO: add list.DoDeepCopy(), list.DoShallowCopy()
 
 // At : returns value at specified position.
 // Returns Value and Ok flag: true - value is valid, false - no value
@@ -84,29 +83,35 @@ func (p *XList[T]) LastObjectPtr() T {
 }
 
 // Clear : clear container.
-func (p *XList[T]) Clear() {
+func (p *XList[T]) Clear() *XList[T] {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	p.home = nil
 	p.end = nil
 	p.size = 0
+
+	return p
 }
 
 // Set : set 'objects' to container.
 // In case of empty objects receiver will be unchanged.
-func (p *XList[T]) Set(objects ...T) {
+// Returns self for method chaining; return value can be ignored.
+func (p *XList[T]) Set(objects ...T) *XList[T] {
 	if len(objects) == 0 {
-		return
+		return p
 	}
 
 	p.Clear()
 	p.Append(objects...)
+
+	return p
 }
 
 // Append : appends 'objects' to container.
 // In case of empty objects receiver will be unchanged.
-func (p *XList[T]) Append(objects ...T) {
+// Returns self for method chaining; return value can be ignored.
+func (p *XList[T]) Append(objects ...T) *XList[T] {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -129,10 +134,13 @@ func (p *XList[T]) Append(objects ...T) {
 		p.end = lobj
 
 	}
+
+	return p
 }
 
-// AppendUnique : appends element if it doesn't exist.
-func (p *XList[T]) AppendUnique(objects ...T) {
+// AppendUnique : appends element if it doesn't exist in current collection.
+// Returns self for method chaining; return value can be ignored.
+func (p *XList[T]) AppendUnique(objects ...T) *XList[T] {
 	var hash [32]byte
 	isObj := make(map[any]bool)
 
@@ -164,7 +172,7 @@ func (p *XList[T]) AppendUnique(objects ...T) {
 
 	if len(isObj) == 0 {
 		p.Append(objects...)
-		return
+		return p
 	}
 
 	// Check object for uniqueness and add it
@@ -174,6 +182,8 @@ func (p *XList[T]) AppendUnique(objects ...T) {
 			p.Append(obj)
 		}
 	}
+
+	return p
 }
 
 // Contains : checks whether the set of objects (the whole set) in the list
@@ -201,6 +211,8 @@ func (p *XList[T]) Contains(objects ...T) bool {
 
 	return true
 }
+
+// TODO: ContainsSome
 
 // Insert : inserts object before the 'pos' position
 // if position is out of right range, append element - no error
@@ -299,6 +311,7 @@ func (p *XList[T]) ReplaceLast(obj T) error {
 	return nil
 }
 
+// DeleteAt : deletes and returns the element at the specified position, or an error if the position is invalid.
 func (p *XList[T]) DeleteAt(pos int) (T, error) {
 	var zero T
 
@@ -314,6 +327,10 @@ func (p *XList[T]) DeleteAt(pos int) (T, error) {
 	}
 
 	xobj := p.goToPosition(pos)
+	if xobj == nil {
+		var zero T
+		return zero, ErrElementNotFound
+	}
 
 	if xobj.prev != nil {
 		xobj.prev.next = xobj.next
@@ -351,9 +368,10 @@ func (p *XList[T]) DeleteLast() (T, error) {
 	return p.DeleteAt(p.Size() - 1)
 }
 
-// Add : adds 'dList' to the receiver's list and returns new instance
-// (!) it does copy elements.
-func (p *XList[T]) Add(dList *XList[T]) *XList[T] {
+// AppendList  adds objects to the end of the list (mutating).
+// Returns self for method chaining; return value can be ignored.
+// (-) Add
+func (p *XList[T]) AppendList(dList *XList[T]) *XList[T] {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
 
@@ -361,7 +379,7 @@ func (p *XList[T]) Add(dList *XList[T]) *XList[T] {
 		return &XList[T]{}
 	}
 
-	targetCp := p.Copy()
+	targetCp := p
 
 	if dList.isEmpty() {
 		return targetCp
@@ -379,10 +397,10 @@ func (p *XList[T]) Add(dList *XList[T]) *XList[T] {
 	}
 
 	if sourceCp.home != nil {
-		sourceCp.home.prev = p.end
+		sourceCp.home.prev = targetCp.end
 	}
 
-	// Set the p.finish to the finish of connected chain
+	// Set the targetCp.end to the tail of connected chain
 	targetCp.end = sourceCp.end
 
 	targetCp.size += sourceCp.size
@@ -390,20 +408,24 @@ func (p *XList[T]) Add(dList *XList[T]) *XList[T] {
 	return targetCp
 }
 
-// Move : move content from 'dList' to receiver at finish.
+// Splice : move content from 'dList' to receiver at its tail (appends container - mutating).
 // (!) 'dList' is destroyed, it becomes empty.
-// Operation is analogue Add, but no new object creates, so it more effective.
-func (p *XList[T]) Move(dList *XList[T]) {
+// (-) Move
+func (p *XList[T]) Splice(dList *XList[T]) *XList[T] {
+
 	if dList == nil || dList.isEmpty() {
-		return
+		return p
 	}
 
-	_ = p.MoveAtPos(p.size, dList)
+	_ = p.SpliceAtPos(p.size, dList)
+
+	return p
 }
 
-// MoveAtPos : inserts (moves) content from 'dList' to receiver at position 'pos'.
+// SpliceAtPos : inserts (moves) content from 'dList' to receiver at position 'pos'.
 // (!) 'dList' is destroyed, it becomes empty.
-func (p *XList[T]) MoveAtPos(pos int, dList *XList[T]) error {
+// (-) MoveAtPos
+func (p *XList[T]) SpliceAtPos(pos int, dList *XList[T]) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -421,7 +443,20 @@ func (p *XList[T]) MoveAtPos(pos int, dList *XList[T]) error {
 		dList.size = 0
 	}
 
-	// Connect chain to the finish
+	// In case of empty receiver
+	if p.isEmpty() {
+		if pos != 0 {
+			return ErrInvalidIndex
+		}
+		p.home = dList.home
+		p.end = dList.end
+		p.size = dList.size
+		resetSrc(dList)
+
+		return nil
+	}
+
+	// Connect chain to the tail
 	if pos == p.size {
 		if p.end != nil {
 			p.end.next = dList.home
@@ -440,13 +475,15 @@ func (p *XList[T]) MoveAtPos(pos int, dList *XList[T]) error {
 
 	// Insert chain
 	xobj := p.goToPosition(pos)
-	if xobj == nil {
+	if xobj == nil { // (!!!) Можно не проверять, так как предыдущие проверки гарантируют не nil
 		return ErrElementNotFound
 	}
 
 	// left side of dList
 	if xobj.prev != nil {
 		xobj.prev.next = dList.home
+	} else {
+		p.home = dList.home
 	}
 
 	if dList.home != nil {
@@ -454,7 +491,8 @@ func (p *XList[T]) MoveAtPos(pos int, dList *XList[T]) error {
 	}
 
 	// right side of dList
-	dList.end = xobj
+	//dList.end = xobj
+	dList.end.next = xobj
 	xobj.prev = dList.end
 
 	// Reset dList
@@ -464,7 +502,8 @@ func (p *XList[T]) MoveAtPos(pos int, dList *XList[T]) error {
 }
 
 // Copy : returns a copy of the list.
-// If shallowCopy is true, the objects are not copied, only the references.
+// It makes shallow copies of objects, so be careful when changing container objects.
+// Consider 'DeepCopy' method to copy the container objects themselves.
 func (p *XList[T]) Copy() *XList[T] {
 	if p.isEmpty() {
 		return &XList[T]{}
@@ -473,41 +512,61 @@ func (p *XList[T]) Copy() *XList[T] {
 	return na
 }
 
+// CopyRange : returns a new container with elements of receiver for specified range [fromPos, toPos].
+// It makes shallow copies of objects, so be careful when changing container objects .
 func (p *XList[T]) CopyRange(fromPos int, toPos int) (*XList[T], error) {
-	var newList *XList[T]
+	return p.DeepCopyRange(fromPos, toPos, func(obj T) T {
+		return obj
+	})
+}
+
+// DeepCopy :  returns a new container with new elements of receiver.
+// It makes deep copies of objects, so you must provide a closure 'deepCopyFn' to make a deep copy of type T.
+func (p *XList[T]) DeepCopy(deepCopyFn func(T) T) *XList[T] {
+	if p.isEmpty() || deepCopyFn == nil {
+		return &XList[T]{}
+	}
+
+	na, _ := p.DeepCopyRange(0, p.size-1, deepCopyFn)
+	return na
+}
+
+// DeepCopyRange : returns a new container with elements from the range [fromPos, toPos].
+// You must provide a closure 'deepCopyFn' that knows how to make a deep copy of type T.
+func (p *XList[T]) DeepCopyRange(fromPos int, toPos int, deepCopyFn func(T) T) (*XList[T], error) {
+
+	if deepCopyFn == nil {
+		return nil, ErrNoClosure
+	}
 
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
 
-	xobj := p.home
+	if fromPos < 0 || fromPos > p.size-1 || toPos < 0 || toPos > p.size-1 || fromPos > toPos {
+		return nil, ErrInvalidIndex
+	}
 
-	i := 0
-	for i <= toPos && xobj != nil {
+	// toPos is required for speculative iteration to get CPU cache
+	xobjs := p.getObjectsAt(fromPos, toPos)
+	if len(xobjs) == 0 || xobjs[0] == nil {
+		return nil, ErrElementNotFound
+	}
 
-		if i == fromPos {
-			newList = &XList[T]{}
-		}
+	result := &XList[T]{}
+	xobj := xobjs[0]
+	i := fromPos
 
-		if newList != nil {
-			if p.shallowCopy {
-				// shallow copy
-				newList.Append(*xobj.obj)
-			} else {
-				// deep copy
-				nrxObj := xobj.obj
-				newList.Append(*nrxObj)
-			}
+	for xobj != nil {
+		result.Append(deepCopyFn(*xobj.obj))
+
+		if i == toPos {
+			break
 		}
 
 		xobj = xobj.next
 		i++
 	}
-
-	if newList == nil || i != toPos+1 {
-		return nil, ErrInvalidIndex
-	}
-
-	return newList, nil
+	return result, nil
 }
 
 // Swap : swapping 2 elements in the list.

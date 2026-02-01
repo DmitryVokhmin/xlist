@@ -4,6 +4,8 @@
 
 package xlist
 
+import "sort"
+
 //  ----------------
 
 // goToPosition : go to object at 'pos' position
@@ -26,4 +28,47 @@ func (p *XList[T]) goToPosition(pos int) *xlistObj[T] {
 	}
 
 	return xobj
+}
+
+// TODO: Проверить!
+// getObjectsAt : returns the xlistObj objects at the specified positions.
+func (p *XList[T]) getObjectsAt(pos ...int) []*xlistObj[T] {
+
+	lenpos := len(pos)
+	if lenpos == 0 {
+		return nil
+	}
+
+	if lenpos > 1 {
+		sort.Ints(pos) // Sorting positions in ascending order
+	}
+
+	var objects []*xlistObj[T]
+	xobj := p.home
+	i := 0
+	ip := 0
+
+	for xobj != nil {
+		position := pos[ip]
+		if position < 0 || position > p.size-1 { // in case of position outside the range
+			ip++
+			if ip >= lenpos {
+				break
+			}
+			continue
+		}
+
+		if i == position {
+			objects = append(objects, xobj)
+			ip++
+			if ip >= lenpos {
+				return objects
+			}
+		}
+
+		xobj = xobj.next
+		i++
+	}
+
+	return objects
 }

@@ -16,6 +16,7 @@ var (
 	ErrElementNotFound = errors.New("element not found")
 	ErrInvalidIndex    = errors.New("invalid index")
 	ErrIsNotAPointer   = errors.New("object is not a pointer")
+	ErrNoClosure       = errors.New("no function closure")
 )
 
 type Compare[T any] interface {
@@ -31,10 +32,6 @@ type XList[T any] struct {
 	mtx sync.RWMutex
 
 	// Work params ----
-
-	// false - make deep copy of containing objects
-	// true - make shallow copy (use pointers)
-	shallowCopy bool
 
 	// Sort mutex
 	sortContext *sortContext[T]

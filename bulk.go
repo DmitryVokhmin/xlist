@@ -24,9 +24,10 @@ func (p *XList[T]) Find(is func(index int, object T) bool) *XList[T] {
 	return newList
 }
 
-// Modify : modifies each element in collection.
-// Useful when XList works in highly concurrency mode, since each 'change' func logic performs under internal mutex.
-func (p *XList[T]) Modify(change func(index int, object T) T) {
+// Modify : modifies each element in collection with function 'change'.
+// Returns self for method chaining; return value can be ignored.
+// Supports concurrency, since each 'change' func logic performs under internal mutex.
+func (p *XList[T]) Modify(change func(index int, object T) T) *XList[T] {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -38,10 +39,13 @@ func (p *XList[T]) Modify(change func(index int, object T) T) {
 		lobj = lobj.next
 		i++
 	}
+
+	return p
 }
 
 // ModifyRev : modify each element in collection (go in reverse order)
-func (p *XList[T]) ModifyRev(change func(index int, object T) T) {
+// Returns self for method chaining; return value can be ignored.
+func (p *XList[T]) ModifyRev(change func(index int, object T) T) *XList[T] {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
@@ -53,4 +57,6 @@ func (p *XList[T]) ModifyRev(change func(index int, object T) T) {
 		lobj = lobj.prev
 		i--
 	}
+
+	return p
 }

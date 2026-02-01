@@ -13,8 +13,7 @@ import (
 // Sort sorts the list according to the provided comparison function.
 //
 // Parameters:
-//   - compare: A function that compares two elements.
-//   - Returns true when `a` should be before `b`, otherwise false.
+//   - compare: A function that compares two elements. Returns true when `a` have to be before `b`, otherwise false.
 func (p *XList[T]) Sort(compare func(a, b T) bool) {
 	// Performance benchmarks:
 	//   - Single thread:  10,000 items ~0.18s, 100,000 items ~28.00s
