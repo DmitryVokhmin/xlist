@@ -7,6 +7,7 @@ package xlist
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 // Sort indexing starts when elements in sorted array are x2 of sortContext.grains
@@ -49,7 +50,7 @@ type xlistObj[T comparable] struct {
 type sortContext[T comparable] struct {
 	changeMtx sync.RWMutex
 	cond      *sync.Cond // wait for signal changes done
-	canRead   bool
+	canRead   atomic.Bool
 
 	grains  int
 	indexes []*indexPair[T]

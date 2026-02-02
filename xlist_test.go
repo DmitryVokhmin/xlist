@@ -481,12 +481,12 @@ func Test(t *testing.T) {
 	assert.Equal(t, 1, list2.Size())
 	assert.Equal(t, obj1, list2.AtPtr(0))
 
-	// Add
+	// AppendList
 	list.Clear()
 	list2.Clear()
 	list.Append(obj1, obj2, obj3)
 	list2.Append(obj4, obj5)
-	list3 := list.Add(list2)
+	list3 := list.AppendList(list2)
 	assert.Equal(t, 5, list3.Size())
 
 	assert.Equal(t, obj1, list3.AtPtr(0))
@@ -502,7 +502,7 @@ func Test(t *testing.T) {
 	assert.Equal(t, obj2, *list3.home.next.next.next.prev.prev.obj)
 
 	list.Clear()
-	list3 = list.Add(list2)
+	list3 = list.AppendList(list2)
 
 	assert.Equal(t, 2, list3.Size())
 	assert.Equal(t, obj4, list3.AtPtr(0))
@@ -510,7 +510,7 @@ func Test(t *testing.T) {
 
 	list.Clear()
 	list.Append(obj1, obj2, obj3)
-	err = list.MoveAtPos(3, list2)
+	err = list.SpliceAtPos(3, list2)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 5, list.Size())
@@ -522,12 +522,12 @@ func Test(t *testing.T) {
 	list.Clear()
 	list2.Clear()
 	list2.Append(obj1)
-	list.Move(list2)
+	list.Splice(list2)
 	assert.Equal(t, 1, list.Size())
 	assert.Equal(t, 0, list2.Size())
 
 	list2.Append(obj2, obj3)
-	list.Move(list2)
+	list.Splice(list2)
 	assert.Equal(t, 3, list.Size())
 
 	// Contains
@@ -658,6 +658,342 @@ func Test(t *testing.T) {
 
 		assert.Equal(t, cValue, value)
 	}
+
+	// ========== ContainsSome Tests ==========
+	// Returns false for empty list
+	list.Clear()
+	ok = list.ContainsSome(obj1, obj2)
+	assert.False(t, ok)
+
+	// Returns false when no objects match
+	list.Append(obj1, obj2, obj3)
+	ok = list.ContainsSome(obj4, obj5)
+	assert.False(t, ok)
+
+	// Returns true when at least one object matches
+	ok = list.ContainsSome(obj1, obj4, obj5)
+	assert.True(t, ok)
+
+	// Returns true when multiple objects match
+	ok = list.ContainsSome(obj1, obj2, obj3)
+	assert.True(t, ok)
+
+	// Returns false when called with no arguments
+	ok = list.ContainsSome()
+	assert.False(t, ok)
+
+	// Works correctly with nil values
+	list.Clear()
+	list.Append(obj1, obj2)
+	list.Append(*new(*teststruct)) // nil value
+	ok = list.ContainsSome(*new(*teststruct))
+	assert.True(t, ok)
+
+	// ========== CopyRange Tests ==========
+	list.Clear()
+	list.Append(obj1, obj2, obj3, obj4, obj5)
+
+	// Copies a range correctly
+	copiedRange, err := list.CopyRange(1, 3)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, copiedRange.Size())
+	assert.Equal(t, obj2, copiedRange.AtPtr(0))
+	assert.Equal(t, obj3, copiedRange.AtPtr(1))
+	assert.Equal(t, obj4, copiedRange.AtPtr(2))
+
+	// Returns error for invalid indices
+	_, err = list.CopyRange(-1, 2)
+	assert.ErrorIs(t, err, ErrInvalidIndex)
+
+	_, err = list.CopyRange(0, 10)
+	assert.ErrorIs(t, err, ErrInvalidIndex)
+
+	// Returns error when fromPos > toPos
+	_, err = list.CopyRange(3, 1)
+	assert.ErrorIs(t, err, ErrInvalidIndex)
+
+	// Handles single element range
+	copiedRange, err = list.CopyRange(2, 2)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, copiedRange.Size())
+	assert.Equal(t, obj3, copiedRange.AtPtr(0))
+
+	// Handles full range correctly
+	copiedRange, err = list.CopyRange(0, 4)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, copiedRange.Size())
+	assert.Equal(t, obj1, copiedRange.AtPtr(0))
+	assert.Equal(t, obj5, copiedRange.AtPtr(4))
+
+	// Works with empty list
+	list.Clear()
+	_, err = list.CopyRange(0, 0)
+	assert.ErrorIs(t, err, ErrInvalidIndex)
+
+	// ========== DeepCopy and DeepCopyRange Tests ==========
+	list.Clear()
+	list.Append(obj1, obj2, obj3, obj4, obj5)
+
+	// DeepCopy creates truly independent copies
+	deepCopyFn := func(obj *teststruct) *teststruct {
+		return &teststruct{Num: obj.Num, Str: obj.Str}
+	}
+
+	deepList := list.DeepCopy(deepCopyFn)
+	assert.Equal(t, 5, deepList.Size())
+
+	// Modify original and verify copy is unaffected
+	obj1Original := list.AtPtr(0)
+	obj1Original.Num = 999
+	obj1Original.Str = "modified"
+
+	obj1Deep := deepList.AtPtr(0)
+	assert.Equal(t, 1, obj1Deep.Num)
+	assert.Equal(t, "obj1", obj1Deep.Str)
+
+	// Reset obj1 for subsequent tests
+	obj1.Num = 1
+	obj1.Str = "obj1"
+
+	// DeepCopyRange works for various ranges
+	deepRange, err := list.DeepCopyRange(1, 3, deepCopyFn)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, deepRange.Size())
+	assert.Equal(t, obj2.Num, deepRange.AtPtr(0).Num)
+	assert.Equal(t, obj4.Num, deepRange.AtPtr(2).Num)
+
+	// Returns error when deepCopyFn is nil
+	emptyList := list.DeepCopy(nil)
+	assert.Equal(t, 0, emptyList.Size())
+
+	_, err = list.DeepCopyRange(0, 2, nil)
+	assert.ErrorIs(t, err, ErrNoClosure)
+
+	// Returns empty list for empty input
+	list.Clear()
+	deepList = list.DeepCopy(deepCopyFn)
+	assert.Equal(t, 0, deepList.Size())
+
+	// Handles struct pointers correctly
+	list.Append(obj1, obj2, obj3)
+	deepList = list.DeepCopy(deepCopyFn)
+	assert.Equal(t, 3, deepList.Size())
+
+	// Verify deep copy independence
+	originalPtr := list.AtPtr(0)
+	deepPtr := deepList.AtPtr(0)
+	assert.NotSame(t, originalPtr, deepPtr)
+	assert.Equal(t, originalPtr.Num, deepPtr.Num)
+	assert.Equal(t, originalPtr.Str, deepPtr.Str)
+
+	// ========== Swap Tests ==========
+	list.Clear()
+	list.Append(obj1, obj2, obj3, obj4, obj5)
+
+	// Swaps two elements correctly
+	err = list.Swap(1, 3)
+	assert.Nil(t, err)
+	assert.Equal(t, obj1, list.AtPtr(0))
+	assert.Equal(t, obj4, list.AtPtr(1))
+	assert.Equal(t, obj3, list.AtPtr(2))
+	assert.Equal(t, obj2, list.AtPtr(3))
+	assert.Equal(t, obj5, list.AtPtr(4))
+
+	// Returns error for invalid indices
+	err = list.Swap(-1, 2)
+	assert.ErrorIs(t, err, ErrInvalidIndex)
+
+	err = list.Swap(1, 10)
+	assert.ErrorIs(t, err, ErrInvalidIndex)
+
+	// Returns nil when swapping same index
+	err = list.Swap(2, 2)
+	assert.Nil(t, err)
+	assert.Equal(t, obj3, list.AtPtr(2))
+
+	// Works at boundaries (first/last elements)
+	list.Clear()
+	list.Append(obj1, obj2, obj3, obj4, obj5)
+	err = list.Swap(0, 4)
+	assert.Nil(t, err)
+	assert.Equal(t, obj5, list.AtPtr(0))
+	assert.Equal(t, obj1, list.AtPtr(4))
+
+	// Preserves list size
+	initialSize := list.Size()
+	err = list.Swap(1, 3)
+	assert.Nil(t, err)
+	assert.Equal(t, initialSize, list.Size())
+
+	// ========== Find Tests ==========
+	list.Clear()
+	list.Append(obj1, obj2, obj3, obj4, obj5)
+
+	// Returns new list with matching elements
+	foundList := list.Find(func(index int, object *teststruct) bool {
+		return object.Num > 2
+	})
+	assert.Equal(t, 3, foundList.Size())
+	assert.Equal(t, obj3, foundList.AtPtr(0))
+	assert.Equal(t, obj4, foundList.AtPtr(1))
+	assert.Equal(t, obj5, foundList.AtPtr(2))
+
+	// Returns empty list when nothing matches
+	foundList = list.Find(func(index int, object *teststruct) bool {
+		return object.Num > 10
+	})
+	assert.Equal(t, 0, foundList.Size())
+
+	// Preserves original list
+	assert.Equal(t, 5, list.Size())
+	assert.Equal(t, obj1, list.AtPtr(0))
+	assert.Equal(t, obj5, list.AtPtr(4))
+
+	// Works with various predicates
+	foundList = list.Find(func(index int, object *teststruct) bool {
+		return index%2 == 0
+	})
+	assert.Equal(t, 3, foundList.Size())
+	assert.Equal(t, obj1, foundList.AtPtr(0))
+	assert.Equal(t, obj3, foundList.AtPtr(1))
+	assert.Equal(t, obj5, foundList.AtPtr(2))
+
+	// ========== Range Iterator Tests ==========
+	list.Clear()
+	list.Append(obj1, obj2, obj3, obj4, obj5)
+
+	// ForwardPtr iterates correctly with index and pointer
+	forwardCount := 0
+	forwardIndices := []int{}
+	for i, ptr := range list.ForwardPtr() {
+		forwardCount++
+		forwardIndices = append(forwardIndices, i)
+		if i == 0 {
+			assert.Equal(t, obj1, *ptr)
+		}
+		if i == 4 {
+			assert.Equal(t, obj5, *ptr)
+		}
+	}
+	assert.Equal(t, 5, forwardCount)
+	assert.Equal(t, []int{0, 1, 2, 3, 4}, forwardIndices)
+
+	// BackwardPtr iterates in reverse with correct indices
+	backwardCount := 0
+	backwardIndices := []int{}
+	for i, ptr := range list.BackwardPtr() {
+		backwardCount++
+		backwardIndices = append(backwardIndices, i)
+		if i == 4 {
+			assert.Equal(t, obj5, *ptr)
+		}
+		if i == 0 {
+			assert.Equal(t, obj1, *ptr)
+		}
+	}
+	assert.Equal(t, 5, backwardCount)
+	assert.Equal(t, []int{4, 3, 2, 1, 0}, backwardIndices)
+
+	// Values iterates without index
+	list.Clear()
+	list.Append(obj1, obj2, obj3)
+
+	valuesCount := 0
+	valuesResult := []*teststruct{}
+	for v := range list.Values() {
+		valuesCount++
+		valuesResult = append(valuesResult, v)
+	}
+	assert.Equal(t, 3, valuesCount)
+	assert.Equal(t, obj1, valuesResult[0])
+	assert.Equal(t, obj2, valuesResult[1])
+	assert.Equal(t, obj3, valuesResult[2])
+
+	// ValuesRev iterates in reverse without index
+	list.Clear()
+	list.Append(obj1, obj2, obj3)
+
+	valuesRevCount := 0
+	valuesRevResult := []*teststruct{}
+	for v := range list.ValuesRev() {
+		valuesRevCount++
+		valuesRevResult = append(valuesRevResult, v)
+	}
+	assert.Equal(t, 3, valuesRevCount)
+	assert.Equal(t, obj3, valuesRevResult[0])
+	assert.Equal(t, obj2, valuesRevResult[1])
+	assert.Equal(t, obj1, valuesRevResult[2])
+
+	// All handle empty lists correctly
+	list.Clear()
+	emptyForwardCount := 0
+	for range list.ForwardPtr() {
+		emptyForwardCount++
+	}
+	assert.Equal(t, 0, emptyForwardCount)
+
+	emptyBackwardCount := 0
+	for range list.BackwardPtr() {
+		emptyBackwardCount++
+	}
+	assert.Equal(t, 0, emptyBackwardCount)
+
+	emptyValuesCount := 0
+	for range list.Values() {
+		emptyValuesCount++
+	}
+	assert.Equal(t, 0, emptyValuesCount)
+
+	emptyValuesRevCount := 0
+	for range list.ValuesRev() {
+		emptyValuesRevCount++
+	}
+	assert.Equal(t, 0, emptyValuesRevCount)
+
+	// ========== Functional Chaining Tests ==========
+	list.Clear()
+
+	// Clear().Append().Modify() then Sort()
+	chainedList := list.Clear().Append(obj3, obj1, obj2).Modify(func(index int, obj *teststruct) *teststruct {
+		obj.Num = obj.Num * 10
+		return obj
+	})
+	chainedList.Sort(func(a, b *teststruct) bool {
+		return a.Num < b.Num
+	})
+
+	assert.Equal(t, 3, chainedList.Size())
+	assert.Equal(t, 10, chainedList.AtPtr(0).Num)
+	assert.Equal(t, 20, chainedList.AtPtr(1).Num)
+	assert.Equal(t, 30, chainedList.AtPtr(2).Num)
+
+	// Reset values for subsequent tests
+	obj1.Num = 1
+	obj2.Num = 2
+	obj3.Num = 3
+
+	// AppendList returns self for chaining
+	list.Clear()
+	list2.Clear()
+	list.Append(obj1, obj2)
+	list2.Append(obj3, obj4)
+
+	result := list.AppendList(list2).Append(obj5)
+	assert.Equal(t, 5, result.Size())
+	assert.Equal(t, obj1, result.AtPtr(0))
+	assert.Equal(t, obj5, result.AtPtr(4))
+
+	// Splice returns self for chaining
+	list.Clear()
+	list2.Clear()
+	list.Append(obj1, obj2)
+	list2.Append(obj3)
+
+	result = list.Splice(list2).Append(obj4)
+	assert.Equal(t, 4, result.Size())
+	assert.Equal(t, 0, list2.Size())
+	assert.Equal(t, obj3, result.AtPtr(2))
+	assert.Equal(t, obj4, result.AtPtr(3))
 
 	concurrencyRWTest(t)
 	concurrencyAppendTest(t)

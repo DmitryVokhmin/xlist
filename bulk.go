@@ -18,6 +18,7 @@ func (p *XList[T]) Find(is func(index int, object T) bool) *XList[T] {
 		if is(i, *lobj.obj) {
 			newList.Append(*lobj.obj)
 		}
+		lobj = lobj.next
 		i++
 	}
 
