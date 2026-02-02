@@ -155,12 +155,16 @@ if value != nil {
 #### *Clears container content*
 
 ```Go
-Clear()
+Clear() *XList[T]
 ```
+Returns self for method chaining; return value can be ignored.
 
 Example:
 ```Go
 list.Clear()
+
+// or with chaining
+list.Clear().Append(1, 2, 3)
 ```
 
 
@@ -169,10 +173,11 @@ list.Clear()
 #### *set 'objects' to container*
 
 ```Go
-Set(objects ...T)
+Set(objects ...T) *XList[T]
 ```
 
 Set object to the container. In case of empty `objects` objects receiver will be unchanged.
+Returns self for method chaining; return value can be ignored.
 
 **( !!! ) It resets all the container content and removes old values.**
 Consider using Append() if you want to keep old values
@@ -181,7 +186,10 @@ Example:
 ```Go
 n := list.Size() // n == 2 (2 elements in container)
 list.Set(1, 2, 3, 4, 5)
-n := list.Size() // n == 5 
+n := list.Size() // n == 5
+
+// or with chaining
+list.Set(1, 2, 3).Append(4, 5)
 ```
 
 
@@ -190,16 +198,20 @@ n := list.Size() // n == 5
 #### *appends 'objects' to container*
 
 ```Go
-Append(objects ...T)
+Append(objects ...T) *XList[T]
 ```
 
-Appends new values 'objects' to container. In case of empty objects receiver will be unchanged. 
+Appends new values 'objects' to container. In case of empty objects receiver will be unchanged.
+Returns self for method chaining; return value can be ignored.
 
 Example:
 ```Go
 n := list.Size() // n == 2 (2 elements in container)
 list.Append(1, 2, 3, 4, 5)
-n := list.Size() // n == 7 
+n := list.Size() // n == 7
+
+// or with chaining
+list.Append(1, 2).Append(3, 4)
 ```
 
 
@@ -208,10 +220,11 @@ n := list.Size() // n == 7
 #### *appends unique 'objects' to container (adds elements if they don't exist)*
 
 ```Go
-AppendUnique(objects ...T)
+AppendUnique(objects ...T) *XList[T]
 ```
 
-Adds new objects to the container but skips any that already exist within the container
+Adds new objects to the container but skips any that already exist within the container.
+Returns self for method chaining; return value can be ignored.
 
 Example:
 ```Go
@@ -237,8 +250,33 @@ Example:
 
 ```Go
 if list.Contains(1, 2, 3, 4, 5) {
-    fmt.Println("All elements are in the container")	
-} 
+    fmt.Println("All elements are in the container")
+}
+```
+
+
+
+### ContainsSome(...T)
+#### *checks whether any of objects is in the container*
+
+```Go
+ContainsSome(objects ...T) bool
+```
+
+Function checks whether any of the provided objects is in the container. Returns `true` if at least one object is found.
+
+Example:
+
+```Go
+list := xlist.New[int](1, 2, 3)
+
+if list.ContainsSome(5, 6, 2) {
+    fmt.Println("At least one element is in the container") // This will print
+}
+
+if !list.ContainsSome(10, 20, 30) {
+    fmt.Println("None of the elements are in the container") // This will print
+}
 ```
 
 
@@ -340,48 +378,50 @@ if err != nil {
 
 
 
-### Add( *XList[T] )
-#### *combines two lists and returns a new one*
+### AppendList( *XList[T] )
+#### *adds elements from another list to the end of this list*
 ```Go
-Add(dList *XList[T]) *XList[T]
+AppendList(dList *XList[T]) *XList[T]
 ```
-Function adds 'dList' elements to the receiver's list and returns a new instance. It copies elements from both lists, and the original lists remain unchanged.
+Function adds copies of elements from 'dList' to the end of the receiver's list. The source list 'dList' remains unchanged.
+Returns self for method chaining; return value can be ignored.
 
 Example:
 ```Go
 list1 := xlist.New(1, 2, 3)
 list2 := xlist.New(4, 5, 6)
-combinedList := list1.Add(list2)
+list1.AppendList(list2)
 
-// combinedList now contains [1, 2, 3, 4, 5, 6]
-// list1 and list2 remain unchanged
+// list1 now contains [1, 2, 3, 4, 5, 6]
+// list2 remains unchanged [4, 5, 6]
 ```
 
 
 
-### Move( *XList[T] )
+### Splice( *XList[T] )
 #### *moves content from another list to the end of this list*
 ```Go
-Move(dList *XList[T])
+Splice(dList *XList[T]) *XList[T]
 ```
 
 Function moves content from 'dList' to the end of the receiver. After this operation, 'dList' becomes empty.
+Returns self for method chaining; return value can be ignored.
 
 Example:
 ```Go
 list1 := xlist.New(1, 2, 3)
 list2 := xlist.New(4, 5, 6)
-list1.Move(list2)
+list1.Splice(list2)
 
 // list1 now contains [1, 2, 3, 4, 5, 6]
 // list2 is now empty
 ```
 
 
-### MoveAtPos( int, *XList[T] )
+### SpliceAtPos( int, *XList[T] )
 #### *inserts content from another list at specified position*
 ```Go
-MoveAtPos(pos int, dList *XList[T]) error
+SpliceAtPos(pos int, dList *XList[T]) error
 ```
 
 Function inserts (moves) content from 'dList' to receiver at position 'pos'. After this operation, 'dList' becomes empty. Returns an error if the position is out of bounds.
@@ -391,37 +431,32 @@ Example:
 list1 := xlist.New(1, 2, 5, 6)
 list2 := xlist.New(3, 4)
 
-err := list1.MoveAtPos(2, list2)
+err := list1.SpliceAtPos(2, list2)
 if err != nil {
-    fmt.Println("MoveAtPos error:", err)
+    fmt.Println("SpliceAtPos error:", err)
 } else {
-	
-// list1 now contains [1, 2, 3, 4, 5, 6]
-// list2 is now empty
+    // list1 now contains [1, 2, 3, 4, 5, 6]
+    // list2 is now empty
 }
 ```
 
 
 
 ### Copy()
-#### *creates a copy of the list*
+#### *creates a shallow copy of the list*
 ```Go
 Copy() *XList[T]
 ```
-Function returns a complete copy of the list. Depending on the list's configuration, it can be a shallow or deep copy.
+Function returns a shallow copy of the list. For deep copying, use `DeepCopy()` method.
 
 Example:
 ```Go
 list := xlist.New(1, 2, 3, 4, 5)
 
-list.DoDeepCopy()
-deepCopyList := list.Copy() // deep copy
+copyList := list.Copy()
 
-list.DoShallowCopy()
-shallowCopyList := list.Copy() // shallow copy
-
-// deepCopyList contains [1, 2, 3, 4, 5]
-// shallowCopyList contains [1, 2, 3, 4, 5]
+// copyList contains [1, 2, 3, 4, 5]
+// Modifying copyList doesn't affect original list
 ```
 
 
@@ -431,7 +466,7 @@ shallowCopyList := list.Copy() // shallow copy
 ```go
 CopyRange(fromPos int, toPos int) (*XList[T], error)
 ```
-Creates a new container with a copy of elements from position `fromPos` to `toPos` (inclusive). Returns an error if the range is invalid.
+Creates a new container with a shallow copy of elements from position `fromPos` to `toPos` (inclusive). Returns an error if the range is invalid.
 
 Example:
 ```go
@@ -444,6 +479,70 @@ if err != nil {
     fmt.Println(sublist.AtPtr(0)) // Output: 2
     fmt.Println(sublist.AtPtr(1)) // Output: 3
     fmt.Println(sublist.AtPtr(2)) // Output: 4
+}
+```
+
+
+
+### DeepCopy( func(T) T )
+#### *creates a deep copy of the list*
+```go
+DeepCopy(deepCopyFn func(T) T) *XList[T]
+```
+Creates a new container with deep copies of all elements. You must provide a closure `deepCopyFn` that knows how to make a deep copy of type T.
+
+Example:
+```go
+type Person struct {
+    Name string
+    Age  int
+}
+
+list := xlist.New[*Person](
+    &Person{"Alice", 30},
+    &Person{"Bob", 25},
+)
+
+// Deep copy with custom copy function
+copyList := list.DeepCopy(func(p *Person) *Person {
+    return &Person{Name: p.Name, Age: p.Age}
+})
+
+// Modifying the copy doesn't affect the original
+copyList.AtPtr(0).Name = "Charlie"
+fmt.Println(list.AtPtr(0).Name)     // Output: Alice
+fmt.Println(copyList.AtPtr(0).Name) // Output: Charlie
+```
+
+
+
+### DeepCopyRange( int, int, func(T) T )
+#### *creates a deep copy of a range of elements*
+```go
+DeepCopyRange(fromPos int, toPos int, deepCopyFn func(T) T) (*XList[T], error)
+```
+Creates a new container with deep copies of elements from position `fromPos` to `toPos` (inclusive). You must provide a closure `deepCopyFn` that knows how to make a deep copy of type T. Returns an error if the range is invalid or if `deepCopyFn` is nil.
+
+Example:
+```go
+type Person struct {
+    Name string
+    Age  int
+}
+
+list := xlist.New[*Person](
+    &Person{"Alice", 30},
+    &Person{"Bob", 25},
+    &Person{"Charlie", 35},
+)
+
+sublist, err := list.DeepCopyRange(0, 1, func(p *Person) *Person {
+    return &Person{Name: p.Name, Age: p.Age}
+})
+if err != nil {
+    fmt.Println("DeepCopyRange error:", err)
+} else {
+    fmt.Println(sublist.Size()) // Output: 2
 }
 ```
 
@@ -588,6 +687,120 @@ slice := list.Slice()
 
 fmt.Println(slice) // Output: [1 2 3 4 5]
 ```
+
+
+## Range Iterators (Go 1.23+)
+
+Range iterators provide a convenient way to iterate over the list using Go's `range` keyword.
+These methods return iterators compatible with Go 1.23+ range-over-func feature.
+
+### ForwardPtr()
+#### *returns an iterator for forward traversal with index and pointer*
+```go
+ForwardPtr() iter.Seq2[int, *T]
+```
+Returns an iterator that yields index and pointer to each element.
+Returns all elements including those with nil pointers.
+Use this method when you need element index or access to nil elements.
+
+Example:
+```go
+list := xlist.New[int](1, 2, 3, 4, 5)
+
+for i, ptr := range list.ForwardPtr() {
+    fmt.Printf("[%d] = %v\n", i, *ptr)
+}
+
+// Output:
+// [0] = 1
+// [1] = 2
+// [2] = 3
+// [3] = 4
+// [4] = 5
+```
+
+
+
+### BackwardPtr()
+#### *returns an iterator for backward traversal with index and pointer*
+```go
+BackwardPtr() iter.Seq2[int, *T]
+```
+Returns an iterator that yields index and pointer to each element in reverse order.
+Indexes start from (size - 1) and decrement to 0.
+Returns all elements including those with nil pointers.
+
+Example:
+```go
+list := xlist.New[int](1, 2, 3, 4, 5)
+
+for i, ptr := range list.BackwardPtr() {
+    fmt.Printf("[%d] = %v\n", i, *ptr)
+}
+
+// Output:
+// [4] = 5
+// [3] = 4
+// [2] = 3
+// [1] = 2
+// [0] = 1
+```
+
+
+
+### Values()
+#### *returns an iterator over values in forward order*
+```go
+Values() iter.Seq[T]
+```
+Returns an iterator that yields values (not pointers) in forward order.
+Elements with nil pointers are automatically skipped.
+Use this method for simple iteration when you don't need element index.
+
+Example:
+```go
+list := xlist.New[int](1, 2, 3, 4, 5)
+
+for v := range list.Values() {
+    fmt.Println(v)
+}
+
+// Output:
+// 1
+// 2
+// 3
+// 4
+// 5
+```
+
+
+
+### ValuesRev()
+#### *returns an iterator over values in reverse order*
+```go
+ValuesRev() iter.Seq[T]
+```
+Returns an iterator that yields values (not pointers) in reverse order.
+Elements with nil pointers are automatically skipped.
+Traversal starts from the last element and moves towards the first.
+
+Example:
+```go
+list := xlist.New[int](1, 2, 3, 4, 5)
+
+for v := range list.ValuesRev() {
+    fmt.Println(v)
+}
+
+// Output:
+// 5
+// 4
+// 3
+// 2
+// 1
+```
+
+
 
 ## Iterator (Sequential traversal of elements)
 ### Iterator()
@@ -980,9 +1193,10 @@ fmt.Println(evenNumbers.AtPtr(1)) // Output: 4
 ### Modify( func(int, T) T )
 #### *modifies each element in the collection*
 ```Go
-Modify(change func(index int, object T) T) 
+Modify(change func(index int, object T) T) *XList[T]
 ```
 Modifies each element in the collection by applying the provided function. This is useful when the XList is used in a highly concurrent environment, since each 'change' function's logic performs under the list's internal mutex.
+Returns self for method chaining; return value can be ignored.
 
 Example:
 ```Go
@@ -1005,10 +1219,11 @@ fmt.Println(list.AtPtr(4)) // Output: 10
 ### ModifyRev( func(int, T) T )
 #### *modifies each element in reverse order*
 ```Go
-ModifyRev(change func(index int, object T) T)
+ModifyRev(change func(index int, object T) T) *XList[T]
 ```
 Modifies each element in the collection by going in reverse order. The function applies the changes starting from the end of the list and moving towards the beginning.
-Useful when current result depends on previous modified values. 
+Useful when current result depends on previous modified values.
+Returns self for method chaining; return value can be ignored.
 
 Example:
 ```Go
@@ -1047,20 +1262,5 @@ fmt.Println(list.AtPtr(1)) // Output: 2
 fmt.Println(list.AtPtr(2)) // Output: 3
 fmt.Println(list.AtPtr(3)) // Output: 5
 fmt.Println(list.AtPtr(4)) // Output: 8
-```
-
----
-
-
-### Title
-#### *subtitle*
-```Go
-signature
-```
-Description
-
-Example:
-```Go
-Пример использования
 ```
 

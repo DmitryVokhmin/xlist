@@ -4,6 +4,8 @@
 
 package xlist
 
+// TODO: Add Range!
+
 // Iterator : creates an iterator for sequential processing.
 //
 // 'workRange' - the first element of the range is the starting index,

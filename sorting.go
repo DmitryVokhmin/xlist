@@ -13,8 +13,7 @@ import (
 // Sort sorts the list according to the provided comparison function.
 //
 // Parameters:
-//   - compare: A function that compares two elements.
-//   - Returns true when `a` should be before `b`, otherwise false.
+//   - compare: A function that compares two elements. Returns true when `a` have to be before `b`, otherwise false.
 func (p *XList[T]) Sort(compare func(a, b T) bool) {
 	// Performance benchmarks:
 	//   - Single thread:  10,000 items ~0.18s, 100,000 items ~28.00s
@@ -51,10 +50,10 @@ func (p *XList[T]) ScanSort(compare func(a, b T) bool) {
 	p.size = 1
 
 	p.sortContext = &sortContext[T]{
-		canRead: true,
 		grains:  indexGrains,
 		indexes: make([]*indexPair[T], indexGrains+1),
 	}
+	p.sortContext.canRead.Store(true)
 
 	p.sortContext.cond = sync.NewCond(&sync.Mutex{})
 
@@ -115,7 +114,7 @@ func (p *XList[T]) placeElementWorker(unsortedChanel <-chan *xlistObj[T], compar
 				gixMap[i] = &indexPair[T]{index, ptr}
 			}
 
-			if !p.sortContext.canRead { // Ожидание вставки элемента в массив
+			if !p.sortContext.canRead.Load() { // Ожидание вставки элемента в массив
 				p.waitUntilChangesDone()
 			}
 
@@ -178,7 +177,7 @@ func (p *XList[T]) waitUntilChangesDone() {
 	p.sortContext.changeMtx.RUnlock() // Release read lock to allow changes
 
 	p.sortContext.cond.L.Lock()
-	for !p.sortContext.canRead { // Check for false awakenings
+	for !p.sortContext.canRead.Load() { // Check for false awakenings
 		p.sortContext.cond.Wait() // Wait for signal
 	}
 	p.sortContext.cond.L.Unlock()
@@ -189,16 +188,16 @@ func (p *XList[T]) waitUntilChangesDone() {
 // waitAllReaderStopsLockChanges : stops reading and waits until all readers stop,
 // then acquires the write lock for making changes to the list.
 func (p *XList[T]) waitAllReaderStopsLockChanges() {
-	p.sortContext.canRead = false     // Signal readers to stop
-	p.sortContext.changeMtx.RUnlock() // Release read lock
-	p.sortContext.changeMtx.Lock()    // Acquire write lock
+	p.sortContext.canRead.Store(false) // Signal readers to stop
+	p.sortContext.changeMtx.RUnlock()  // Release read lock
+	p.sortContext.changeMtx.Lock()     // Acquire write lock
 }
 
 // startReadsChangesDone : signals that changes are complete and reading can resume.
 // It releases the write lock and broadcasts to all waiting readers.
 func (p *XList[T]) startReadsChangesDone() {
-	p.sortContext.canRead = true     // Signal that reading can resume
-	p.sortContext.changeMtx.Unlock() // Release write lock
+	p.sortContext.canRead.Store(true) // Signal that reading can resume
+	p.sortContext.changeMtx.Unlock()  // Release write lock
 
 	p.sortContext.cond.Broadcast()  // Notify all waiting readers
 	p.sortContext.changeMtx.RLock() // Reacquire read lock
