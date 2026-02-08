@@ -2,18 +2,17 @@
 
 ## Introduction
 
+`XList` is a generic, thread-safe, doubly-linked list for Go. It's a high-performance alternative to slices, optimized for frequent insertions, deletions, and reordering. The API design is inspired by the power and simplicity of `NSArray` from Apple's Cocoa framework.
 
-Xlist is a container representing a classic doubly linked list, where each element is connected to both its previous and next elements. This container is efficient for storing elements and processing them sequentially.
-
-The creation of this container was inspired by the rich functionality of NSArray from Apple’s development library.
-
-It provides support for:
-- CRUD operations (Create, Read, Update, and Delete)
-- Managing unique container objects
-- Bulk processing (modifying container objects using closures)
-- Searching for objects
-- Highly efficient (multithreaded) sorting operations
-- Iterators for efficient sequential operations
+Key features include:
+- **Rich Core API**: Full CRUD, unique element handling, and list-splicing operations.
+- **Bulk & Batch Processing**: `Find`, `Modify`, and `ModifyRev` using closures.
+- **Concurrent Sorting**: Fast, stable, in-place merge sort.
+- **Dual Iterator Models**:
+    - Classic stateful iterator for manual control (`Next`/`Prev`).
+    - Modern `range` iterators for Go 1.23+ with `Filter`, `Map`, etc.
+- **Element Marking**: Built-in flags for complex selection logic.
+- **Go Integration**: Easily convert to a standard slice via `Slice()`.
 
 
 
@@ -23,6 +22,91 @@ Install go module:
 ```shell
 go get github.com/DmitryVokhmin/xlist
 ```
+
+## Functionality overview
+
+This section provides a brief overview of the library's functionality.
+
+### Core Functions
+
+- **New**: Creates a new empty `XList` container.
+- **At**: Returns the value at the specified index.
+- **AtPtr**: Returns a pointer to the value at the specified index.
+- **IsEmpty**: Checks if the container is empty.
+- **Size**: Returns the number of elements in the container.
+- **LastObject**: Returns the last element in the container.
+- **LastObjectPtr**: Returns a pointer to the last element in the container.
+- **Clear**: Removes all elements from the container.
+- **Set**: Replaces the container's contents with a new set of objects.
+- **Append**: Adds objects to the end of the container.
+- **AppendUnique**: Appends elements if they don't already exist in the collection.
+- **Contains**: Checks if a set of objects is fully contained in the list.
+- **ContainsSome**: Checks if any of the provided objects exist in the list.
+- **Insert**: Inserts objects at a specified position.
+- **Replace**: Replaces the element at a specified position.
+- **ReplaceLast**: Replaces the last element.
+- **DeleteAt**: Deletes the element at a specified position.
+- **DeleteLast**: Deletes the last element.
+- **AppendList**: Appends another list to the end of the current list (mutating).
+- **Splice**: Moves all elements from another list to the end of the current list, emptying the source list.
+- **SpliceAtPos**: Inserts another list's content at a specified position, emptying the source list.
+- **Copy**: Creates a shallow copy of the list.
+- **CopyRange**: Creates a shallow copy of a specified range of elements.
+- **DeepCopy**: Creates a deep copy of the list using a provided copy function.
+- **DeepCopyRange**: Creates a deep copy of a specified range using a provided copy function.
+- **Swap**: Swaps two elements in the list.
+
+### Bulk Processing
+
+- **Find**: Returns a new list containing elements that match the given predicate.
+- **Modify**: Modifies each element in the collection using a provided function.
+- **ModifyRev**: Modifies each element in reverse order.
+
+### Sorting
+
+- **Sort**: Sorts the list using a stable, concurrent merge sort algorithm based on the provided comparison function.
+- **ScanSort**: An alias for `Sort`.
+
+### Iterators
+
+- **Iterator**: Creates a classic iterator for sequential processing over a specified range.
+- **Reset**: Resets the iterator with a new range.
+- **SetIndex**: Sets the iterator to a specific index.
+- **SetFirst**: Moves the iterator to the first element.
+- **SetLast**: Moves the iterator to the last element.
+- **Index**: Returns the current iterator index.
+- **Value**: Returns the value at the current iterator position.
+- **Next**: Moves the iterator to the next element.
+- **Prev**: Moves the iterator to the previous element.
+- **NextValue**: Moves to the next element and returns its value.
+- **PrevValue**: Moves to the previous element and returns its value.
+
+### Range Iterators (Go 1.23+)
+
+- **All**: Returns a forward `range` iterator over the list.
+- **Backward**: Returns a reverse `range` iterator over the list.
+- **Values**: Returns a forward `range` iterator of values only (no index).
+- **ValuesBackward**: Returns a reverse `range` iterator of values only.
+- **ToValues**: A helper function to transform an iterator with index and value into an iterator of values only.
+- **Filter**: Creates an iterator that yields only elements matching a predicate.
+- **TakeWhile**: Creates an iterator that yields elements as long as a predicate is true.
+- **SkipWhile**: Creates an iterator that skips elements while a predicate is true and then yields the rest.
+- **Map**: Creates an iterator that transforms each element from one type to another.
+- **AnyMatch**: A terminal operation that checks if any element matches a predicate.
+- **AllMatch**: A terminal operation that checks if all elements match a predicate.
+
+### Marking
+
+- **MarkAtIndex**: Marks an element at a specific index.
+- **UnmarkAtIndex**: Unmarks an element at a specific index.
+- **IsMarkedAtIndex**: Checks if an element at a specific index is marked.
+- **MarkAll**: Marks all elements in the list.
+- **UnmarkAll**: Unmarks all elements in thelist.
+
+### Integrations
+
+- **Slice**: Converts the list into a standard Go slice.
+
 
 # API description
 
@@ -47,39 +131,59 @@ fmt.Println(list.Size()) // Output: 3
 ```go
 At(index int) (T, bool)
 ```
-Returns Value and Ok flag: true - value is valid, false - no value.
-First element is at 0 position.
+Returns the value and a bool flag: `true` if the value is valid, `false` if index is out of range.
+This method is recommended for **value types** (e.g., `XList[int]`, `XList[string]`) where you need to distinguish between a valid zero value and a missing element.
 
 Example:
 ```Go
-value, ok := list.At(10)
+list := xlist.New[int](10, 20, 30)
+
+value, ok := list.At(1)
 if ok {
-    fmt.Println(value)
+    fmt.Println(value) // Output: 20
 } else {
-    fmt.Println("No value at position 10")
+    fmt.Println("No value at this position")
 }
+
+// For value types, zero value needs explicit check
+value, ok = list.At(10) // Out of range
+fmt.Println(value, ok)  // Output: 0 false
 ```
 
 
 
 ### AtPtr( int ) 
-#### *returns pointer to a value at specified position*
-_(experimental future)_
+#### *returns value at specified position (optimized for pointer types)*
 
 ```go
 AtPtr(index int) T
 ```
-Returns a value pointer or nil if no value. First element is at 0 position.
-Designed specifically to work with pointers in container.
-AtPtr(...) can return 'nil', so no need to return additional validity flag like `At(...)`.
+Returns the value at the specified index, or zero value (nil for pointers) if not found.
+This method is designed for **pointer types** (e.g., `XList[*User]`, `XList[*MyStruct]`) where `nil` naturally indicates absence - simply check if the returned pointer is nil.
+
+For value types, use `At()` instead to properly distinguish zero values from missing elements.
 
 Example:
 ```Go
-value := list.AtPtr(10)
-if value != nil {
-    fmt.Println(*value)
-} else {
-    fmt.Println("No value at position 10")
+type User struct {
+    Name string
+    Age  int
+}
+
+list := xlist.New[*User](
+    &User{"Alice", 30},
+    &User{"Bob", 25},
+)
+
+// For pointer types, nil check is natural and convenient
+user := list.AtPtr(0)
+if user != nil {
+    fmt.Println(user.Name) // Output: Alice
+}
+
+user = list.AtPtr(10) // Out of range
+if user == nil {
+    fmt.Println("No user at this position") // This will print
 }
 ```
 
@@ -116,36 +220,66 @@ fmt.Println("List size is", list.Size())
 
 
 ### LastObject()
-#### *returns last object in container*
+#### *returns the last element in the container*
 ```Go
 LastObject() (T, bool)
 ```
+Returns the last element and a bool flag: `true` if the value is valid, `false` if container is empty.
+This method is recommended for **value types** (e.g., `XList[int]`, `XList[string]`) where you need to distinguish between a valid zero value and an empty container.
 
 Example:
 ```Go
+list := xlist.New[int](10, 20, 30)
+
 value, ok := list.LastObject()
 if ok {
-    fmt.Println(value)
+    fmt.Println(value) // Output: 30
 } else {
     fmt.Println("List is empty")
 }
+
+// Empty list example
+emptyList := xlist.New[int]()
+value, ok = emptyList.LastObject()
+fmt.Println(value, ok) // Output: 0 false
 ```
 
 
 
 ### LastObjectPtr() 
-#### *returns last object pointer in container*
+#### *returns the last element in the container (optimized for pointer types)*
 
 ```Go
 LastObjectPtr() T
 ```
+Returns the last element, or zero value (nil for pointers) if container is empty.
+This method is designed for **pointer types** (e.g., `XList[*User]`, `XList[*MyStruct]`) where `nil` naturally indicates absence - simply check if the returned pointer is nil.
+
+For value types, use `LastObject()` instead to properly distinguish zero values from empty container.
+
 Example:
 ```Go
-value := list.LastObjectPtr()
-if value != nil {
-    fmt.Println(*value)
-} else {
-    fmt.Println("List is empty")
+type User struct {
+    Name string
+    Age  int
+}
+
+list := xlist.New[*User](
+    &User{"Alice", 30},
+    &User{"Bob", 25},
+)
+
+// For pointer types, nil check is natural and convenient
+user := list.LastObjectPtr()
+if user != nil {
+    fmt.Println(user.Name) // Output: Bob
+}
+
+// Empty list example
+emptyList := xlist.New[*User]()
+user = emptyList.LastObjectPtr()
+if user == nil {
+    fmt.Println("List is empty") // This will print
 }
 ```
 

@@ -7,14 +7,14 @@ package xlist
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"fmt"
-	"reflect"
 )
 
 // ------ Core functions ------
 
-// At : returns value at specified position.
-// Returns Value and Ok flag: true - value is valid, false - no value
+// At : returns the value at the specified index.
+// Returns the value and a bool flag: true if the value is valid, false if index is out of range.
+// This method is recommended for value types (e.g., XList[int], XList[string])
+// where you need to distinguish between a valid zero value and a missing element.
 func (p *XList[T]) At(index int) (T, bool) {
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
@@ -34,10 +34,12 @@ func (p *XList[T]) at(index int) (T, bool) {
 	return *lobj.obj, true
 }
 
+// AtPtr returns the value at the specified index, or zero value if not found.
+// This method is designed for pointer types (e.g., XList[*User], XList[*MyStruct])
+// where nil naturally indicates absence - simply check if the returned pointer is nil.
+// For value types, use At() instead to properly distinguish zero values from missing elements.
 func (p *XList[T]) AtPtr(index int) T {
-	var xobj T
-	xobj, _ = p.At(index)
-
+	xobj, _ := p.At(index)
 	return xobj
 }
 
@@ -67,19 +69,21 @@ func (p *XList[T]) Size() int {
 	return p.size
 }
 
-// LastObject : returns last object in container.
+// LastObject returns the last element in the container.
+// Returns the value and a bool flag: true if the value is valid, false if container is empty.
+// This method is recommended for value types (e.g., XList[int], XList[string])
+// where you need to distinguish between a valid zero value and an empty container.
 func (p *XList[T]) LastObject() (T, bool) {
 	return p.At(p.size - 1)
 }
 
-// LastObjectPtr : returns last object pointer in container.
+// LastObjectPtr returns the last element in the container, or zero value if container is empty.
+// This method is designed for pointer types (e.g., XList[*User], XList[*MyStruct])
+// where nil naturally indicates absence - simply check if the returned pointer is nil.
+// For value types, use LastObject() instead to properly distinguish zero values from empty container.
 func (p *XList[T]) LastObjectPtr() T {
 	xobj, _ := p.LastObject()
-	if reflect.ValueOf(xobj).Kind() == reflect.Ptr {
-		return xobj
-	}
-
-	panic(fmt.Sprintf("%v, %s", xobj, ErrIsNotAPointer.Error()))
+	return xobj
 }
 
 // Clear : clear container.
