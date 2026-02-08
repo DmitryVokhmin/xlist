@@ -691,114 +691,259 @@ fmt.Println(slice) // Output: [1 2 3 4 5]
 
 ## Range Iterators (Go 1.23+)
 
-Range iterators provide a convenient way to iterate over the list using Go's `range` keyword.
-These methods return iterators compatible with Go 1.23+ range-over-func feature.
+These methods leverage Go's new `iter` package (available from Go 1.23) to provide powerful and flexible ways to iterate over the list. They support functional programming patterns like filtering, mapping, and chaining.
 
-### ForwardPtr()
-#### *returns an iterator for forward traversal with index and pointer*
+### All
+#### *returns a forward iterator over the list with index and value*
 ```go
-ForwardPtr() iter.Seq2[int, *T]
+All(opt ...func(*RangeOptions)) iter.Seq2[int, T]
 ```
-Returns an iterator that yields index and pointer to each element.
-Returns all elements including those with nil pointers.
-Use this method when you need element index or access to nil elements.
+Returns a forward iterator (`iter.Seq2`) that yields both the index and the value for each element. The iteration can be constrained using `WithPos(int)` to specify a starting index and `WithCount(int)` to limit the number of elements.
 
 Example:
 ```go
-list := xlist.New[int](1, 2, 3, 4, 5)
+list := xlist.New[string]("a", "b", "c", "d", "e")
 
-for i, ptr := range list.ForwardPtr() {
-    fmt.Printf("[%d] = %v\n", i, *ptr)
+// Iterate over all elements
+for i, v := range list.All() {
+    fmt.Printf("Index: %d, Value: %s\n", i, v)
 }
-
 // Output:
-// [0] = 1
-// [1] = 2
-// [2] = 3
-// [3] = 4
-// [4] = 5
-```
+// Index: 0, Value: a
+// Index: 1, Value: b
+// ...
 
-
-
-### BackwardPtr()
-#### *returns an iterator for backward traversal with index and pointer*
-```go
-BackwardPtr() iter.Seq2[int, *T]
-```
-Returns an iterator that yields index and pointer to each element in reverse order.
-Indexes start from (size - 1) and decrement to 0.
-Returns all elements including those with nil pointers.
-
-Example:
-```go
-list := xlist.New[int](1, 2, 3, 4, 5)
-
-for i, ptr := range list.BackwardPtr() {
-    fmt.Printf("[%d] = %v\n", i, *ptr)
+// Iterate starting from index 2 with a count of 2
+for i, v := range list.All(xlist.WithPos(2), xlist.WithCount(2)) {
+    fmt.Printf("Index: %d, Value: %s\n", i, v)
 }
-
 // Output:
-// [4] = 5
-// [3] = 4
-// [2] = 3
-// [1] = 2
-// [0] = 1
+// Index: 2, Value: c
+// Index: 3, Value: d
 ```
 
-
-
-### Values()
-#### *returns an iterator over values in forward order*
+### Backward
+#### *returns a reverse iterator over the list with index and value*
 ```go
-Values() iter.Seq[T]
+Backward(opt ...func(*RangeOptions)) iter.Seq2[int, T]
 ```
-Returns an iterator that yields values (not pointers) in forward order.
-Elements with nil pointers are automatically skipped.
-Use this method for simple iteration when you don't need element index.
+Returns a reverse iterator that yields the index and value for each element, starting from the end of the list and moving to the beginning. It also supports `WithPos` and `WithCount` options.
 
 Example:
 ```go
-list := xlist.New[int](1, 2, 3, 4, 5)
+list := xlist.New[string]("a", "b", "c", "d", "e")
+
+// Iterate backward over all elements
+for i, v := range list.Backward() {
+    fmt.Printf("Index: %d, Value: %s\n", i, v)
+}
+// Output:
+// Index: 4, Value: e
+// Index: 3, Value: d
+// ...
+
+// Iterate backward starting from index 3 with a count of 2
+for i, v := range list.Backward(xlist.WithPos(3), xlist.WithCount(2)) {
+	fmt.Printf("Index: %d, Value: %s\n", i, v)
+}
+// Output:
+// Index: 3, Value: d
+// Index: 2, Value: c
+```
+
+### Values
+#### *returns a forward iterator of values only*
+```go
+Values(opt ...func(*RangeOptions)) iter.Seq[T]
+```
+A convenience method that returns a forward iterator (`iter.Seq`) yielding only the values, without indices. It's equivalent to `ToValues(list.All(...))`.
+
+Example:
+```go
+list := xlist.New[int](10, 20, 30)
 
 for v := range list.Values() {
     fmt.Println(v)
 }
-
 // Output:
-// 1
-// 2
-// 3
-// 4
-// 5
+// 10
+// 20
+// 30
 ```
 
-
-
-### ValuesRev()
-#### *returns an iterator over values in reverse order*
+### ValuesBackward
+#### *returns a reverse iterator of values only*
 ```go
-ValuesRev() iter.Seq[T]
+ValuesBackward(opt ...func(*RangeOptions)) iter.Seq[T]
 ```
-Returns an iterator that yields values (not pointers) in reverse order.
-Elements with nil pointers are automatically skipped.
-Traversal starts from the last element and moves towards the first.
+A convenience method that returns a reverse iterator yielding only values. It's equivalent to `ToValues(list.Backward(...))`.
 
 Example:
 ```go
-list := xlist.New[int](1, 2, 3, 4, 5)
+list := xlist.New[int](10, 20, 30)
 
-for v := range list.ValuesRev() {
+for v := range list.ValuesBackward() {
     fmt.Println(v)
 }
+// Output:
+// 30
+// 20
+// 10
+```
 
+### ToValues
+#### *converts an iterator with index and value to one with values only*
+```go
+ToValues[T any](seq2 iter.Seq2[int, T]) iter.Seq[T]
+```
+A helper function that transforms an `iter.Seq2[int, T]` (yielding index and value) into an `iter.Seq[T]` (yielding only values).
+
+Example:
+```go
+list := xlist.New[int](1, 2, 3)
+valuesIterator := xlist.ToValues(list.All())
+
+for v := range valuesIterator {
+    fmt.Println(v)
+}
+// Output:
+// 1
+// 2
+// 3
+```
+
+### Filter
+#### *creates an iterator that yields only elements matching a predicate*
+```go
+Filter[T any](it2 iter.Seq2[int, T], is_ok func(int, T) bool) iter.Seq2[int, T]
+```
+An iterator adapter that takes an `iter.Seq2` and a predicate function. It returns a new `iter.Seq2` that only yields elements for which the predicate returns `true`.
+
+Example:
+```go
+list := xlist.New[int](1, 2, 3, 4, 5, 6)
+evenNumbers := xlist.Filter(list.All(), func(i int, v int) bool {
+    return v%2 == 0
+})
+
+for i, v := range evenNumbers {
+    fmt.Printf("Found even number at index %d: %d\n", i, v)
+}
+// Output:
+// Found even number at index 1: 2
+// Found even number at index 3: 4
+// Found even number at index 5: 6
+```
+
+### TakeWhile
+#### *creates an iterator that yields elements while a predicate is true*
+```go
+TakeWhile[T any](it2 iter.Seq2[int, T], is_ok func(int, T) bool) iter.Seq2[int, T]
+```
+An iterator adapter that yields elements from the input sequence as long as the predicate returns `true`. The iteration stops permanently after the first time the predicate returns `false`.
+
+Example:
+```go
+list := xlist.New[int](2, 4, 5, 6, 7)
+initialEvens := xlist.TakeWhile(list.All(), func(_ int, v int) bool {
+    return v%2 == 0
+})
+
+for _, v := range initialEvens {
+    fmt.Println(v)
+}
+// Output:
+// 2
+// 4
+// (Stops at 5, because it's not even)
+```
+
+### SkipWhile
+#### *creates an iterator that skips elements while a predicate is true*
+```go
+SkipWhile[T any](it2 iter.Seq2[int, T], is_ok func(int, T) bool) iter.Seq2[int, T]
+```
+An iterator adapter that skips elements from the input sequence as long as the predicate returns `true`. Once the predicate returns `false`, it starts yielding all subsequent elements.
+
+Example:
+```go
+list := xlist.New[int](2, 4, 5, 6, 7)
+tail := xlist.SkipWhile(list.All(), func(_ int, v int) bool {
+    return v%2 == 0
+})
+
+for _, v := range tail {
+    fmt.Println(v)
+}
 // Output:
 // 5
-// 4
-// 3
-// 2
-// 1
+// 6
+// 7
+// (Skips 2 and 4, starts yielding from 5)
 ```
+
+### Map
+#### *creates an iterator that transforms each element in a sequence*
+```go
+Map[T, V any](seq iter.Seq[T], transform func(T) V) iter.Seq[V]
+```
+An iterator adapter that applies a `transform` function to each element of an input `iter.Seq`, producing a new `iter.Seq` with the transformed values. Note this works on value-only iterators.
+
+Example:
+```go
+list := xlist.New[int](1, 2, 3)
+asStrings := xlist.Map(list.Values(), func(v int) string {
+    return fmt.Sprintf("Value: %d", v)
+})
+
+for s := range asStrings {
+    fmt.Println(s)
+}
+// Output:
+// Value: 1
+// Value: 2
+// Value: 3
+```
+
+### AnyMatch
+#### *checks if any element in a sequence matches a predicate*
+```go
+AnyMatch[T any](it2 iter.Seq2[int, T], is_ok func(int, T) bool) bool
+```
+A terminal operation that consumes an iterator and returns `true` if at least one element satisfies the predicate `is_ok`. The iteration stops as soon as a match is found.
+
+Example:
+```go
+list := xlist.New[int](1, 3, 4, 5)
+hasEvenNumber := xlist.AnyMatch(list.All(), func(_ int, v int) bool {
+    return v%2 == 0
+})
+
+if hasEvenNumber {
+    fmt.Println("The list contains at least one even number.") // This will print
+}
+```
+
+### AllMatch
+#### *checks if all elements in a sequence match a predicate*
+```go
+AllMatch[T any](it2 iter.Seq2[int, T], is_ok func(int, T) bool) bool
+```
+A terminal operation that consumes an iterator and returns `true` if all elements satisfy the predicate `is_ok`. The iteration stops as soon as an element fails the predicate.
+
+Example:
+```go
+list := xlist.New[int](2, 4, 6)
+allAreEven := xlist.AllMatch(list.All(), func(_ int, v int) bool {
+    return v%2 == 0
+})
+
+if allAreEven {
+    fmt.Println("All numbers in the list are even.") // This will print
+}
+```
+
+
 
 
 
@@ -1263,4 +1408,3 @@ fmt.Println(list.AtPtr(2)) // Output: 3
 fmt.Println(list.AtPtr(3)) // Output: 5
 fmt.Println(list.AtPtr(4)) // Output: 8
 ```
-
