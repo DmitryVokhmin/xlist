@@ -15,7 +15,7 @@ type teststruct struct {
 	Str string
 }
 
-func Test(t *testing.T) {
+func TestXList(t *testing.T) {
 	var obj1, obj2, obj3, obj4, obj5, obj5cp, objRes *teststruct
 	var objStk, xobjStk teststruct
 	var xobj *teststruct
@@ -862,42 +862,265 @@ func Test(t *testing.T) {
 	list.Clear()
 	list.Append(obj1, obj2, obj3, obj4, obj5)
 
-	// ForwardPtr iterates correctly with index and pointer
+	// All(): direct pass from start to end, no options
 	forwardCount := 0
-	forwardIndices := []int{}
-	for i, ptr := range list.ForwardPtr() {
+	var forwardIndices []int
+	for i, ptr := range list.All() {
 		forwardCount++
 		forwardIndices = append(forwardIndices, i)
 		if i == 0 {
-			assert.Equal(t, obj1, *ptr)
+			assert.Equal(t, obj1, ptr)
 		}
 		if i == 4 {
-			assert.Equal(t, obj5, *ptr)
+			assert.Equal(t, obj5, ptr)
 		}
 	}
 	assert.Equal(t, 5, forwardCount)
 	assert.Equal(t, []int{0, 1, 2, 3, 4}, forwardIndices)
 
-	// BackwardPtr iterates in reverse with correct indices
+	// All(): start from first element (pos=1) to end
+	n := 0
+	var forwardFromFirst []int
+	for i, ptr := range list.All(WithPos(1)) {
+		forwardFromFirst = append(forwardFromFirst, i)
+		if i == 1 {
+			assert.Equal(t, obj2, ptr)
+		}
+		if i == 4 {
+			assert.Equal(t, obj5, ptr)
+		}
+		n++
+	}
+	assert.Equal(t, 4, n)
+	assert.Equal(t, []int{1, 2, 3, 4}, forwardFromFirst)
+
+	// All(): from first element, count=3
+	n = 0
+	for i, ptr := range list.All(WithPos(1), WithCount(3)) {
+		switch i {
+		case 1:
+			assert.Equal(t, obj2, ptr)
+		case 2:
+			assert.Equal(t, obj3, ptr)
+		case 3:
+			assert.Equal(t, obj4, ptr)
+		}
+		assert.Contains(t, []int{1, 2, 3}, i)
+		n++
+	}
+	assert.Equal(t, 3, n)
+
+	// All(): from first element, count=4 (boundary within range)
+	n = 0
+	for i, ptr := range list.All(WithPos(1), WithCount(4)) {
+		switch i {
+		case 1:
+			assert.Equal(t, obj2, ptr)
+		case 2:
+			assert.Equal(t, obj3, ptr)
+		case 3:
+			assert.Equal(t, obj4, ptr)
+		case 4:
+			assert.Equal(t, obj5, ptr)
+		}
+		assert.Contains(t, []int{1, 2, 3, 4}, i)
+		n++
+	}
+	assert.Equal(t, 4, n)
+
+	// All(): from first element, count=5 (over range should clamp)
+	n = 0
+	for i, ptr := range list.All(WithPos(1), WithCount(5)) {
+		switch i {
+		case 1:
+			assert.Equal(t, obj2, ptr)
+		case 2:
+			assert.Equal(t, obj3, ptr)
+		case 3:
+			assert.Equal(t, obj4, ptr)
+		case 4:
+			assert.Equal(t, obj5, ptr)
+		}
+		assert.Contains(t, []int{1, 2, 3, 4}, i)
+		n++
+	}
+	assert.Equal(t, 4, n)
+
+	// All(): negative count should be treated as absolute
+	n = 0
+	for i := range list.All(WithCount(-2)) {
+		assert.Contains(t, []int{0, 1}, i)
+		n++
+	}
+	assert.Equal(t, 2, n)
+
+	// All(): boundary positions within range
+	n = 0
+	for i, ptr := range list.All(WithPos(0), WithCount(1)) {
+		assert.Equal(t, 0, i)
+		assert.Equal(t, obj1, ptr)
+		n++
+	}
+	assert.Equal(t, 1, n)
+
+	n = 0
+	for i, ptr := range list.All(WithPos(4), WithCount(1)) {
+		assert.Equal(t, 4, i)
+		assert.Equal(t, obj5, ptr)
+		n++
+	}
+	assert.Equal(t, 1, n)
+
+	// All(): invalid positive position should panic
+	assert.Panics(t, func() {
+		for range list.All(WithPos(5)) {
+		}
+	})
+
+	// All(): invalid negative position should panic
+	assert.Panics(t, func() {
+		for range list.All(WithPos(-3)) {
+		}
+	})
+
+	// Backward(): direct reverse pass from end to start
 	backwardCount := 0
-	backwardIndices := []int{}
-	for i, ptr := range list.BackwardPtr() {
+	var backwardIndices []int
+	for i, ptr := range list.Backward() {
 		backwardCount++
 		backwardIndices = append(backwardIndices, i)
 		if i == 4 {
-			assert.Equal(t, obj5, *ptr)
+			assert.Equal(t, obj5, ptr)
 		}
 		if i == 0 {
-			assert.Equal(t, obj1, *ptr)
+			assert.Equal(t, obj1, ptr)
 		}
 	}
 	assert.Equal(t, 5, backwardCount)
 	assert.Equal(t, []int{4, 3, 2, 1, 0}, backwardIndices)
 
-	// Values iterates without index
+	// Backward(): start from first element (pos=1), go to start
+	n = 0
+	var backwardFromFirst []int
+	for i, ptr := range list.Backward(WithPos(1)) {
+		backwardFromFirst = append(backwardFromFirst, i)
+		if i == 1 {
+			assert.Equal(t, obj2, ptr)
+		}
+		if i == 0 {
+			assert.Equal(t, obj1, ptr)
+		}
+		n++
+	}
+	assert.Equal(t, 2, n)
+	assert.Equal(t, []int{1, 0}, backwardFromFirst)
+
+	// Backward(): from pos=1, count=3 (over range should clamp)
+	n = 0
+	for i, ptr := range list.Backward(WithPos(1), WithCount(3)) {
+		switch i {
+		case 1:
+			assert.Equal(t, obj2, ptr)
+		case 0:
+			assert.Equal(t, obj1, ptr)
+		}
+		assert.Contains(t, []int{1, 0}, i)
+		n++
+	}
+	assert.Equal(t, 2, n)
+
+	// Backward(): from pos=4, count=5 (full range)
+	n = 0
+	for i, ptr := range list.Backward(WithPos(4), WithCount(5)) {
+		switch i {
+		case 4:
+			assert.Equal(t, obj5, ptr)
+		case 3:
+			assert.Equal(t, obj4, ptr)
+		case 2:
+			assert.Equal(t, obj3, ptr)
+		case 1:
+			assert.Equal(t, obj2, ptr)
+		case 0:
+			assert.Equal(t, obj1, ptr)
+		}
+		assert.Contains(t, []int{4, 3, 2, 1, 0}, i)
+		n++
+	}
+	assert.Equal(t, 5, n)
+
+	// Backward(): from pos=2, count=3
+	n = 0
+	for i, ptr := range list.Backward(WithPos(2), WithCount(3)) {
+		switch i {
+		case 2:
+			assert.Equal(t, obj3, ptr)
+		case 1:
+			assert.Equal(t, obj2, ptr)
+		case 0:
+			assert.Equal(t, obj1, ptr)
+		}
+		assert.Contains(t, []int{2, 1, 0}, i)
+		n++
+	}
+	assert.Equal(t, 3, n)
+
+	// Backward(): from pos=2, count=4 (over range should clamp)
+	n = 0
+	for i, ptr := range list.Backward(WithPos(2), WithCount(4)) {
+		switch i {
+		case 2:
+			assert.Equal(t, obj3, ptr)
+		case 1:
+			assert.Equal(t, obj2, ptr)
+		case 0:
+			assert.Equal(t, obj1, ptr)
+		}
+		assert.Contains(t, []int{2, 1, 0}, i)
+		n++
+	}
+	assert.Equal(t, 3, n)
+
+	// Backward(): negative count should be treated as absolute
+	n = 0
+	for i := range list.Backward(WithCount(-2)) {
+		assert.Contains(t, []int{4, 3}, i)
+		n++
+	}
+	assert.Equal(t, 2, n)
+
+	// Backward(): boundary positions within range
+	n = 0
+	for i, ptr := range list.Backward(WithPos(0), WithCount(1)) {
+		assert.Equal(t, 0, i)
+		assert.Equal(t, obj1, ptr)
+		n++
+	}
+	assert.Equal(t, 1, n)
+
+	n = 0
+	for i, ptr := range list.Backward(WithPos(4), WithCount(1)) {
+		assert.Equal(t, 4, i)
+		assert.Equal(t, obj5, ptr)
+		n++
+	}
+	assert.Equal(t, 1, n)
+
+	// Backward(): invalid positive position should panic
+	assert.Panics(t, func() {
+		for range list.Backward(WithPos(5)) {
+		}
+	})
+
+	// Backward(): invalid negative position should panic
+	assert.Panics(t, func() {
+		for range list.Backward(WithPos(-3)) {
+		}
+	})
+
+	// Values(): iterates without index
 	list.Clear()
 	list.Append(obj1, obj2, obj3)
-
 	valuesCount := 0
 	valuesResult := []*teststruct{}
 	for v := range list.Values() {
@@ -909,31 +1132,164 @@ func Test(t *testing.T) {
 	assert.Equal(t, obj2, valuesResult[1])
 	assert.Equal(t, obj3, valuesResult[2])
 
-	// ValuesRev iterates in reverse without index
-	list.Clear()
-	list.Append(obj1, obj2, obj3)
-
-	valuesRevCount := 0
-	valuesRevResult := []*teststruct{}
-	for v := range list.ValuesRev() {
-		valuesRevCount++
-		valuesRevResult = append(valuesRevResult, v)
+	// ValuesBackward(): iterates in reverse without index
+	valuesRev := []*teststruct{}
+	for v := range list.ValuesBackward() {
+		valuesRev = append(valuesRev, v)
 	}
-	assert.Equal(t, 3, valuesRevCount)
-	assert.Equal(t, obj3, valuesRevResult[0])
-	assert.Equal(t, obj2, valuesRevResult[1])
-	assert.Equal(t, obj1, valuesRevResult[2])
+	assert.Equal(t, []*teststruct{obj3, obj2, obj1}, valuesRev)
 
-	// All handle empty lists correctly
+	// Values(): RangeOptions
+	valuesFromPos := []*teststruct{}
+	for v := range list.Values(WithPos(1)) {
+		valuesFromPos = append(valuesFromPos, v)
+	}
+	assert.Equal(t, []*teststruct{obj2, obj3}, valuesFromPos)
+
+	valuesWithCount := []*teststruct{}
+	for v := range list.Values(WithPos(1), WithCount(2)) {
+		valuesWithCount = append(valuesWithCount, v)
+	}
+	assert.Equal(t, []*teststruct{obj2, obj3}, valuesWithCount)
+
+	// ValuesBackward(): RangeOptions
+	valuesBackFromPos := []*teststruct{}
+	for v := range list.ValuesBackward(WithPos(1)) {
+		valuesBackFromPos = append(valuesBackFromPos, v)
+	}
+	assert.Equal(t, []*teststruct{obj2, obj1}, valuesBackFromPos)
+
+	valuesBackWithCount := []*teststruct{}
+	for v := range list.ValuesBackward(WithPos(2), WithCount(2)) {
+		valuesBackWithCount = append(valuesBackWithCount, v)
+	}
+	assert.Equal(t, []*teststruct{obj3, obj2}, valuesBackWithCount)
+
+	list.Append(obj4, obj5)
+	valuesBackClamp := []*teststruct{}
+	for v := range list.ValuesBackward(WithPos(4), WithCount(10)) {
+		valuesBackClamp = append(valuesBackClamp, v)
+	}
+	assert.Equal(t, []*teststruct{obj5, obj4, obj3, obj2, obj1}, valuesBackClamp)
+
+	// Values(): invalid position should panic
+	assert.Panics(t, func() {
+		for range list.Values(WithPos(-1)) {
+		}
+	})
+
+	// ValuesBackward(): invalid position should panic
+	assert.Panics(t, func() {
+		for range list.ValuesBackward(WithPos(5)) {
+		}
+	})
+
+	// ToValues(): returns all values as-is (including nil)
+	list.Clear()
+	//list.Append(obj1, (*teststruct)(nil), obj2)
+	list.Append(obj1, nil, obj2)
+
+	vals := []*teststruct{}
+	for v := range ToValues(list.All()) {
+		if v != nil { // manually skip nil if needed
+			vals = append(vals, v)
+		}
+	}
+	assert.Equal(t, []*teststruct{obj1, obj2}, vals)
+
+	valsFromPos := []*teststruct{}
+	for v := range ToValues(list.All(WithPos(1), WithCount(2))) {
+		if v != nil {
+			valsFromPos = append(valsFromPos, v)
+		}
+	}
+	assert.Equal(t, []*teststruct{obj2}, valsFromPos)
+
+	valsBack := []*teststruct{}
+	for v := range ToValues(list.Backward()) {
+		if v != nil {
+			valsBack = append(valsBack, v)
+		}
+	}
+	assert.Equal(t, []*teststruct{obj2, obj1}, valsBack)
+
+	// Filter(): keep even indices
+	list.Clear()
+	list.Append(obj1, obj2, obj3, obj4, obj5)
+	filtered := []*teststruct{}
+	for i, obj := range Filter(list.All(), func(index int, obj *teststruct) bool {
+		return obj != nil && index%2 == 0
+	}) {
+		assert.Contains(t, []int{0, 2, 4}, i)
+		filtered = append(filtered, obj)
+	}
+	assert.Equal(t, []*teststruct{obj1, obj3, obj5}, filtered)
+
+	// TakeWhile(): stop on first failure
+	taken := []*teststruct{}
+	for _, obj := range TakeWhile(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil && obj.Num < 4
+	}) {
+		taken = append(taken, obj)
+	}
+	assert.Equal(t, []*teststruct{obj1, obj2, obj3}, taken)
+
+	// SkipWhile(): skip prefix, then yield rest
+	skipped := []*teststruct{}
+	for _, obj := range SkipWhile(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil && obj.Num < 3
+	}) {
+		skipped = append(skipped, obj)
+	}
+	assert.Equal(t, []*teststruct{obj3, obj4, obj5}, skipped)
+
+	// Map(): transform values
+	strs := []string{}
+	for s := range Map(list.Values(), func(v *teststruct) string {
+		return fmt.Sprintf("%d-%s", v.Num, v.Str)
+	}) {
+		strs = append(strs, s)
+	}
+	assert.Equal(t, []string{"1-obj1", "2-obj2", "3-obj3", "4-obj4", "5-obj5"}, strs)
+
+	// AnyMatch(): true and false cases
+	hasEven := AnyMatch(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil && obj.Num%2 == 0
+	})
+	assert.Equal(t, true, hasEven)
+	noneBig := AnyMatch(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil && obj.Num > 10
+	})
+	assert.Equal(t, false, noneBig)
+
+	// AllMatch(): true and false cases
+	allPositive := AllMatch(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil && obj.Num > 0
+	})
+	assert.Equal(t, true, allPositive)
+	notAllBig := AllMatch(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil && obj.Num > 3
+	})
+	assert.Equal(t, false, notAllBig)
+
+	// Terminal functions: invalid predicate should panic
+	assert.Panics(t, func() {
+		AnyMatch(list.All(), nil)
+	})
+	assert.Panics(t, func() {
+		AllMatch(list.All(), nil)
+	})
+
+	// Empty list behavior
 	list.Clear()
 	emptyForwardCount := 0
-	for range list.ForwardPtr() {
+	for range list.All() {
 		emptyForwardCount++
 	}
 	assert.Equal(t, 0, emptyForwardCount)
 
 	emptyBackwardCount := 0
-	for range list.BackwardPtr() {
+	for range list.Backward() {
 		emptyBackwardCount++
 	}
 	assert.Equal(t, 0, emptyBackwardCount)
@@ -944,11 +1300,19 @@ func Test(t *testing.T) {
 	}
 	assert.Equal(t, 0, emptyValuesCount)
 
-	emptyValuesRevCount := 0
-	for range list.ValuesRev() {
-		emptyValuesRevCount++
+	emptyValuesBackwardCount := 0
+	for range list.ValuesBackward() {
+		emptyValuesBackwardCount++
 	}
-	assert.Equal(t, 0, emptyValuesRevCount)
+	assert.Equal(t, 0, emptyValuesBackwardCount)
+
+	// Terminal functions on empty list
+	assert.Equal(t, false, AnyMatch(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil
+	}))
+	assert.Equal(t, true, AllMatch(list.All(), func(_ int, obj *teststruct) bool {
+		return obj != nil
+	}))
 
 	// ========== Functional Chaining Tests ==========
 	list.Clear()
