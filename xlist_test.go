@@ -1471,8 +1471,8 @@ func sortTest(t *testing.T) {
 	t.Logf("Sort of %d elements done for %.2f seconds\n", listSize, time.Since(start).Seconds())
 
 	// Check sort
-	t.Log("Check sorting...")
-
+	t.Log("Check sorting and iterators")
+	t.Log("1. Check with with it.NextValue() iterator ...")
 	assert.Equal(t, listSize, xlist.Size())
 
 	it := xlist.Iterator()
@@ -1504,7 +1504,7 @@ func sortTest(t *testing.T) {
 		prevValue = value
 	}
 
-	t.Log("------------------------------------------------------")
+	t.Log("2. Check with it.Next() and it.Value() iterator ...")
 
 	it.Reset()
 
@@ -1523,7 +1523,7 @@ func sortTest(t *testing.T) {
 		prevValue = value
 	}
 
-	t.Log("------------------------------------------------------")
+	t.Log("3. Check with it.Prev() and it.Value() reverse iterator ...")
 
 	it.Reset()
 	for it.Prev() {
