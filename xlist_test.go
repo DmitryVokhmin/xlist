@@ -1488,10 +1488,10 @@ func sortTest(t *testing.T) {
 			continue
 		}
 
-		ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
-		assert.LessOrEqual(t, prevValue, value, ss)
-
 		if prevValue > value {
+			ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
+			assert.LessOrEqual(t, prevValue, value, ss)
+
 			index := it.Index()
 
 			v, _ := xlist.At(index)
@@ -1517,8 +1517,10 @@ func sortTest(t *testing.T) {
 			continue
 		}
 
-		ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
-		assert.LessOrEqual(t, prevValue, value, ss)
+		if prevValue > value {
+			ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
+			assert.LessOrEqual(t, prevValue, value, ss)
+		}
 
 		prevValue = value
 	}
@@ -1535,9 +1537,10 @@ func sortTest(t *testing.T) {
 			continue
 		}
 
-		ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
-		// assert.LessOrEqual(t, prevValue, value, ss)
-		assert.GreaterOrEqual(t, prevValue, value, ss)
+		if prevValue < value {
+			ss := fmt.Sprintf("Previous value must be greater or equal than the current value at index %d", it.Index())
+			assert.GreaterOrEqual(t, prevValue, value, ss)
+		}
 
 		prevValue = value
 	}
