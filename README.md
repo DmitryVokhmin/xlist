@@ -1542,3 +1542,31 @@ fmt.Println(list.AtPtr(2)) // Output: 3
 fmt.Println(list.AtPtr(3)) // Output: 5
 fmt.Println(list.AtPtr(4)) // Output: 8
 ```
+
+
+**Algorithm: PDQSort (Pattern-Defeating Quicksort)**
+
+`Sort` uses a parallel PDQSort — the same algorithm family used in Go's standard `slices` package, Rust's standard library, and modern C++ implementations — adapted for a doubly-linked list.
+
+The algorithm combines three strategies:
+- **Insertion sort** for small segments (≤ 12 elements) — minimal overhead on short runs.
+- **Quicksort** as the main engine — O(n log n) average with smart pivot selection (median-of-3, Tukey ninther for n ≥ 50). Detects already-sorted and reverse-sorted inputs and handles them in O(n).
+- **Heapsort** as a fallback — triggered only when too many unbalanced partitions are detected, guaranteeing O(n log n) worst case.
+
+All sorting is done by swapping `obj` pointers inside existing nodes — no elements are moved or allocated. Recursive sub-problems are dispatched to goroutines (up to `GOMAXPROCS-1` parallel workers) when the segment is large enough (≥ 2048 elements).
+
+**Benchmark** (`sort_benchmark_test.go`, 100,000 elements, Apple M4 Pro, `go test -bench=. -benchmem -benchtime=10s`):
+
+The benchmark compares `XList.Sort` against `slices.SortFunc` / `slices.Sort` on identical random data. For `XList`, data is loaded into the list via `Append` before each iteration; for slice, data is copied via `copy`. Only the sort itself is measured (`b.StopTimer` / `b.StartTimer`).
+
+| **Benchmark**           | **ns/op**     | **B/op**  | **allocs/op** |
+|-------------------------|---------------|-----------|---------------|
+| XList Sort — struct     | 2,840,180     | 1,613     | 22            |
+| Slice Sort — struct     | 7,235,237     | 0         | 0             |
+| XList Sort — int        | 2,451,451     | 1,946     | 26            |
+| Slice Sort — int        | 4,610,621     | 0         | 0             |
+
+
+XList Sort is **~2.5x faster** [*] than `slices.Sort` on this hardware. The small number of allocations (~22–26) comes from goroutine stacks spawned for parallel sub-problems — one allocation per goroutine, unavoidable in Go's concurrency model.
+
+[*]: Although XList uses the same PDQSort algorithm, its single-threaded performance is slightly slower than the native `slices.Sort`. This is due to the memory layout of a doubly-linked list, which scatters data and is less cache-friendly for the CPU. The overall ~2.5x speedup is achieved by leveraging Go's concurrency to execute the sort in parallel.

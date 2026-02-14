@@ -53,7 +53,7 @@ type sortContext[T comparable] struct {
 	canRead   atomic.Bool
 
 	grains  int
-	indexes []*indexPair[T]
+	indexes []indexPair[T]
 }
 
 // indexPair : structure to store a pair of index and object in XList (need for sorting)

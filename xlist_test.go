@@ -1471,8 +1471,8 @@ func sortTest(t *testing.T) {
 	t.Logf("Sort of %d elements done for %.2f seconds\n", listSize, time.Since(start).Seconds())
 
 	// Check sort
-	t.Log("Check sorting...")
-
+	t.Log("Check sorting and iterators")
+	t.Log("1. Check with with it.NextValue() iterator ...")
 	assert.Equal(t, listSize, xlist.Size())
 
 	it := xlist.Iterator()
@@ -1488,10 +1488,10 @@ func sortTest(t *testing.T) {
 			continue
 		}
 
-		ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
-		assert.LessOrEqual(t, prevValue, value, ss)
-
 		if prevValue > value {
+			ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
+			assert.LessOrEqual(t, prevValue, value, ss)
+
 			index := it.Index()
 
 			v, _ := xlist.At(index)
@@ -1504,7 +1504,7 @@ func sortTest(t *testing.T) {
 		prevValue = value
 	}
 
-	t.Log("------------------------------------------------------")
+	t.Log("2. Check with it.Next() and it.Value() iterator ...")
 
 	it.Reset()
 
@@ -1517,13 +1517,15 @@ func sortTest(t *testing.T) {
 			continue
 		}
 
-		ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
-		assert.LessOrEqual(t, prevValue, value, ss)
+		if prevValue > value {
+			ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
+			assert.LessOrEqual(t, prevValue, value, ss)
+		}
 
 		prevValue = value
 	}
 
-	t.Log("------------------------------------------------------")
+	t.Log("3. Check with it.Prev() and it.Value() reverse iterator ...")
 
 	it.Reset()
 	for it.Prev() {
@@ -1535,9 +1537,10 @@ func sortTest(t *testing.T) {
 			continue
 		}
 
-		ss := fmt.Sprintf("Previous value must be less or equal than the current value at index %d", it.Index())
-		// assert.LessOrEqual(t, prevValue, value, ss)
-		assert.GreaterOrEqual(t, prevValue, value, ss)
+		if prevValue < value {
+			ss := fmt.Sprintf("Previous value must be greater or equal than the current value at index %d", it.Index())
+			assert.GreaterOrEqual(t, prevValue, value, ss)
+		}
 
 		prevValue = value
 	}
