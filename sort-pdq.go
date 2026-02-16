@@ -43,13 +43,13 @@ func pdqNextPowerOfTwo(length int) uint {
 //   - compare: A function that compares two elements.
 //     Returns true when `a` should be before `b`, otherwise false.
 func (p *XList[T]) PDQSort(compare func(a, b T) bool) {
-	n := p.size
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	n := p.Size()
 	if n < 2 {
 		return
 	}
-
-	p.mtx.Lock()
-	defer p.mtx.Unlock()
 
 	less := func(a, b *xlistObj[T]) bool {
 		return compare(*a.obj, *b.obj)

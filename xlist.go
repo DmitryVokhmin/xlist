@@ -18,6 +18,7 @@ var (
 	ErrInvalidIndex    = errors.New("invalid index")
 	ErrIsNotAPointer   = errors.New("object is not a pointer")
 	ErrNoClosure       = errors.New("no function closure")
+	ErrInvalidArgument = errors.New("invalid argument")
 )
 
 type Compare[T any] interface {
@@ -28,7 +29,7 @@ type XList[T comparable] struct {
 	home *xlistObj[T] // first object
 	end  *xlistObj[T] // last object
 
-	size int // counts elements inside container
+	size atomic.Int64 // counts elements inside container
 
 	mtx sync.RWMutex
 
@@ -62,6 +63,7 @@ type indexPair[T comparable] struct {
 	obj *xlistObj[T]
 }
 
+/*
 // Iterator : optimal for sequential element passes
 type Iterator[T comparable] struct {
 	parent *XList[T]    // parent structure
@@ -72,12 +74,11 @@ type Iterator[T comparable] struct {
 	start  int
 	finish int
 }
+*/
 
 // New : create new empty XList container
 func New[T comparable](objects ...T) *XList[T] {
-	newList := XList[T]{
-		mtx: sync.RWMutex{},
-	}
+	newList := XList[T]{}
 
 	if len(objects) == 0 {
 		return &newList

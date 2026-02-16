@@ -7,12 +7,12 @@ package xlist
 // Find : looking for objects in list according to criteria defined in 'is' function and
 // returns new list with objects that were found.
 func (p *XList[T]) Find(is func(index int, object T) bool) *XList[T] {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
 	lobj := p.home
 	newList := &XList[T]{}
 	i := 0
-
-	p.mtx.RLock()
-	defer p.mtx.RUnlock()
 
 	for lobj != nil {
 		if is(i, *lobj.obj) {

@@ -92,7 +92,7 @@ func TestXList(t *testing.T) {
 	assert.Nil(t, list.home.prev)
 
 	// size
-	assert.Equal(t, list.size, 1)
+	assert.Equal(t, list.Size(), 1)
 
 	// Clear
 	assert.Equal(t, false, list.IsEmpty())
