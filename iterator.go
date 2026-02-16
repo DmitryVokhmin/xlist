@@ -4,9 +4,26 @@
 
 package xlist
 
-// TODO: Add Range!
+// Iterator : optimal for sequential element passes.
+//
+// Thread safety: Iterator is NOT safe for concurrent use.
+// If the container is accessed from multiple goroutines, the caller is responsible
+// for providing their own synchronization (e.g., sync.Mutex or sync.RWMutex).
+// For thread-safe iteration, use the range-based methods: All(), Backward(), Values(), etc.
+type Iterator[T comparable] struct {
+	parent *XList[T]    // parent structure
+	index  int          // index
+	lobj   *xlistObj[T] // pointer to XList object
+
+	// Allowed range
+	start  int
+	finish int
+}
 
 // Iterator : creates an iterator for sequential processing.
+//
+// Thread safety: the returned Iterator is NOT safe for concurrent use.
+// See Iterator type documentation for details.
 //
 // 'workRange' - the first element of the range is the starting index,
 // the second element is the end index, if only one element is passed,

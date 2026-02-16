@@ -7,6 +7,7 @@ package xlist
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"unsafe"
 )
 
 // ------ Core functions ------
@@ -66,7 +67,7 @@ func (p *XList[T]) isEmpty() bool {
 
 // Size : returns size of container.
 func (p *XList[T]) Size() int {
-	return p.size
+	return int(p.size.Load())
 }
 
 // LastObject returns the last element in the container.
@@ -74,7 +75,7 @@ func (p *XList[T]) Size() int {
 // This method is recommended for value types (e.g., XList[int], XList[string])
 // where you need to distinguish between a valid zero value and an empty container.
 func (p *XList[T]) LastObject() (T, bool) {
-	return p.At(p.size - 1)
+	return p.At(p.Size() - 1)
 }
 
 // LastObjectPtr returns the last element in the container, or zero value if container is empty.
@@ -91,9 +92,13 @@ func (p *XList[T]) Clear() *XList[T] {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
+	return p.clear()
+}
+
+func (p *XList[T]) clear() *XList[T] {
 	p.home = nil
 	p.end = nil
-	p.size = 0
+	p.size.Store(0)
 
 	return p
 }
@@ -106,8 +111,11 @@ func (p *XList[T]) Set(objects ...T) *XList[T] {
 		return p
 	}
 
-	p.Clear()
-	p.Append(objects...)
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	p.clear()
+	p.append(objects...)
 
 	return p
 }
@@ -119,16 +127,20 @@ func (p *XList[T]) Append(objects ...T) *XList[T] {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
+	return p.append(objects...)
+}
+
+func (p *XList[T]) append(objects ...T) *XList[T] {
 	for _, obj := range objects {
 		lobj := &xlistObj[T]{
 			obj: &obj,
 		}
 
-		p.size++
-
 		if p.isEmpty() {
 			p.home = lobj
 			p.end = p.home
+
+			p.size.Add(1)
 
 			continue
 		}
@@ -136,6 +148,8 @@ func (p *XList[T]) Append(objects ...T) *XList[T] {
 		lobj.prev = p.end
 		p.end.next = lobj
 		p.end = lobj
+
+		p.size.Add(1)
 
 	}
 
@@ -163,19 +177,20 @@ func (p *XList[T]) AppendUnique(objects ...T) *XList[T] {
 		return hash
 	}
 
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
 	// Create hash map
 	lobj := p.home
-	p.mtx.RLock()
 	for lobj != nil {
 		hash = getHash(lobj.obj)
 		isObj[hash] = true
 
 		lobj = lobj.next
 	}
-	p.mtx.RUnlock()
 
 	if len(isObj) == 0 {
-		p.Append(objects...)
+		p.append(objects...)
 		return p
 	}
 
@@ -183,7 +198,7 @@ func (p *XList[T]) AppendUnique(objects ...T) *XList[T] {
 	for _, obj := range objects {
 		hash = getHash(&obj)
 		if _, found := isObj[hash]; !found {
-			p.Append(obj)
+			p.append(obj)
 		}
 	}
 
@@ -211,6 +226,9 @@ func (p *XList[T]) containsInternal(containsSome bool, objects ...T) bool { // n
 		return true // The empty set is a subset of every set.
 	}
 
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
 	if p.home == nil {
 		return false
 	}
@@ -218,16 +236,13 @@ func (p *XList[T]) containsInternal(containsSome bool, objects ...T) bool { // n
 	// Special case for one object
 	if len(objects) == 1 {
 		target := objects[0]
-		p.mtx.RLock()
-		defer p.mtx.RUnlock()
 
-		lobj := p.home
-		for lobj != nil {
+		for lobj := p.home; lobj != nil; lobj = lobj.next {
 			if *lobj.obj == target { // direct compare T
 				return true
 			}
-			lobj = lobj.next
 		}
+
 		return false
 	}
 
@@ -235,9 +250,6 @@ func (p *XList[T]) containsInternal(containsSome bool, objects ...T) bool { // n
 	for _, obj := range objects {
 		lookingFor[obj] = struct{}{}
 	}
-
-	p.mtx.RLock()
-	defer p.mtx.RUnlock()
 
 	xobj := p.home
 	for xobj != nil {
@@ -260,12 +272,12 @@ func (p *XList[T]) containsInternal(containsSome bool, objects ...T) bool { // n
 // Insert : inserts object before the 'pos' position
 // if position is out of right range, append element - no error
 func (p *XList[T]) Insert(pos int, objects ...T) error {
-	if pos < 0 || pos > p.size {
+	if pos < 0 || pos > p.Size() {
 		return ErrInvalidIndex
 	}
 
 	// insert last element
-	if p.size == pos {
+	if p.Size() == pos {
 		p.Append(objects...)
 		return nil
 	}
@@ -288,7 +300,7 @@ func (p *XList[T]) Insert(pos int, objects ...T) error {
 			p.home = lobj
 			p.end = lobj
 
-			p.size = 1
+			p.size.Store(1)
 			pos++
 			continue
 		}
@@ -310,7 +322,7 @@ func (p *XList[T]) Insert(pos int, objects ...T) error {
 		}
 
 		xobj.prev = lobj
-		p.size++
+		p.size.Add(1)
 		pos++ // move position for multiple insert
 	}
 
@@ -345,7 +357,7 @@ func (p *XList[T]) ReplaceLast(obj T) error {
 		return ErrElementNotFound
 	}
 
-	xobj := p.goToPosition(p.size - 1)
+	xobj := p.goToPosition(p.Size() - 1)
 	if xobj == nil {
 		return ErrElementNotFound
 	}
@@ -365,7 +377,7 @@ func (p *XList[T]) DeleteAt(pos int) (T, error) {
 		return zero, nil
 	}
 
-	if pos < 0 || pos >= p.size {
+	if pos < 0 || pos >= p.Size() {
 		return zero, ErrInvalidIndex
 	}
 
@@ -393,45 +405,80 @@ func (p *XList[T]) DeleteAt(pos int) (T, error) {
 		p.end = xobj.prev
 	}
 
-	p.size--
+	p.size.Add(-1)
 
 	return *xobj.obj, nil
 }
 
 func (p *XList[T]) DeleteLast() (T, error) {
-	p.mtx.RLock()
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
 	if p.end == nil {
 		var zero T
-		p.mtx.RUnlock()
-
 		return zero, ErrElementNotFound
 	}
-	p.mtx.RUnlock()
 
-	return p.DeleteAt(p.Size() - 1)
+	xobj := p.end
+
+	if xobj.prev != nil {
+		xobj.prev.next = nil
+		p.end = xobj.prev
+	} else {
+		p.home = nil
+		p.end = nil
+	}
+
+	p.size.Add(-1)
+
+	return *xobj.obj, nil
 }
 
 // AppendList  adds objects to the end of the list (mutating).
 // Returns self for method chaining; return value can be ignored.
 // (-) Add
 func (p *XList[T]) AppendList(dList *XList[T]) *XList[T] {
-	p.mtx.RLock()
-	defer p.mtx.RUnlock()
+	// Lock ordering: when locking two lists, always lock the one with the lower
+	// memory address first. This prevents AB/BA deadlocks when two goroutines
+	// call e.g. a.AppendList(b) and b.AppendList(a) simultaneously.
+	if p == dList {
+		p.mtx.Lock()
+		defer p.mtx.Unlock()
+	} else if uintptr(unsafe.Pointer(p)) < uintptr(unsafe.Pointer(dList)) {
+		p.mtx.Lock()
+		dList.mtx.RLock()
+		defer p.mtx.Unlock()
+		defer dList.mtx.RUnlock()
+	} else {
+		dList.mtx.RLock()
+		p.mtx.Lock()
+		defer dList.mtx.RUnlock()
+		defer p.mtx.Unlock()
+	}
 
 	if dList.isEmpty() && p.isEmpty() {
-		return &XList[T]{}
+		return p
 	}
 
 	targetCp := p
+	sourceCp, err := dList.deepCopyRange(0, dList.Size()-1, func(obj T) T {
+		return obj
+	})
+
+	if err != nil {
+		panic(err)
+	}
 
 	if dList.isEmpty() {
 		return targetCp
 	}
 
-	sourceCp := dList.Copy()
-
 	if p.isEmpty() {
-		return sourceCp
+		p.home = sourceCp.home
+		p.end = sourceCp.end
+		p.size.Store(sourceCp.size.Load())
+
+		return targetCp
 	}
 
 	// Connect 2 chains
@@ -446,7 +493,7 @@ func (p *XList[T]) AppendList(dList *XList[T]) *XList[T] {
 	// Set the targetCp.end to the tail of connected chain
 	targetCp.end = sourceCp.end
 
-	targetCp.size += sourceCp.size
+	targetCp.size.Add(sourceCp.size.Load())
 
 	return targetCp
 }
@@ -456,11 +503,11 @@ func (p *XList[T]) AppendList(dList *XList[T]) *XList[T] {
 // (-) Move
 func (p *XList[T]) Splice(dList *XList[T]) *XList[T] {
 
-	if dList == nil || dList.isEmpty() {
+	if dList == nil || dList.IsEmpty() {
 		return p
 	}
 
-	_ = p.SpliceAtPos(p.size, dList)
+	_ = p.SpliceAtPos(p.Size(), dList)
 
 	return p
 }
@@ -469,38 +516,43 @@ func (p *XList[T]) Splice(dList *XList[T]) *XList[T] {
 // (!) 'dList' is destroyed, it becomes empty.
 // (-) MoveAtPos
 func (p *XList[T]) SpliceAtPos(pos int, dList *XList[T]) error {
-	p.mtx.Lock()
+	if p == dList {
+		return ErrInvalidArgument
+	}
+
+	// Lock ordering: always lock the list with the lower memory address first.
+	// This prevents AB/BA deadlocks when two goroutines call
+	// e.g. a.SpliceAtPos(_, b) and b.SpliceAtPos(_, a) simultaneously.
+	if uintptr(unsafe.Pointer(p)) < uintptr(unsafe.Pointer(dList)) {
+		p.mtx.Lock()
+		dList.mtx.Lock()
+	} else {
+		dList.mtx.Lock()
+		p.mtx.Lock()
+	}
 	defer p.mtx.Unlock()
+	defer dList.mtx.Unlock()
 
 	if dList.isEmpty() {
 		return nil
 	}
 
-	if pos < 0 || pos > p.size {
+	if pos < 0 || pos > p.Size() {
 		return ErrInvalidIndex
-	}
-
-	resetSrc := func(dList *XList[T]) {
-		dList.home = nil
-		dList.end = nil
-		dList.size = 0
 	}
 
 	// In case of empty receiver
 	if p.isEmpty() {
-		if pos != 0 {
-			return ErrInvalidIndex
-		}
 		p.home = dList.home
 		p.end = dList.end
-		p.size = dList.size
-		resetSrc(dList)
+		p.size.Store(dList.size.Load())
+		dList.clear()
 
 		return nil
 	}
 
 	// Connect chain to the tail
-	if pos == p.size {
+	if pos == p.Size() {
 		if p.end != nil {
 			p.end.next = dList.home
 		}
@@ -509,18 +561,15 @@ func (p *XList[T]) SpliceAtPos(pos int, dList *XList[T]) error {
 		}
 
 		p.end = dList.end
-		p.size += dList.size
+		p.size.Add(dList.size.Load())
 
-		resetSrc(dList)
+		dList.clear()
 
 		return nil
 	}
 
 	// Insert chain
 	xobj := p.goToPosition(pos)
-	if xobj == nil { // (!!!) Можно не проверять, так как предыдущие проверки гарантируют не nil
-		return ErrElementNotFound
-	}
 
 	// left side of dList
 	if xobj.prev != nil {
@@ -538,8 +587,9 @@ func (p *XList[T]) SpliceAtPos(pos int, dList *XList[T]) error {
 	dList.end.next = xobj
 	xobj.prev = dList.end
 
-	// Reset dList
-	resetSrc(dList)
+	p.size.Add(dList.size.Load())
+
+	dList.clear()
 
 	return nil
 }
@@ -548,17 +598,27 @@ func (p *XList[T]) SpliceAtPos(pos int, dList *XList[T]) error {
 // It makes shallow copies of objects, so be careful when changing container objects.
 // Consider 'DeepCopy' method to copy the container objects themselves.
 func (p *XList[T]) Copy() *XList[T] {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
 	if p.isEmpty() {
 		return &XList[T]{}
 	}
-	na, _ := p.CopyRange(0, p.size-1)
+
+	na, _ := p.deepCopyRange(0, p.Size()-1, func(obj T) T {
+		return obj
+	})
+
 	return na
 }
 
 // CopyRange : returns a new container with elements of receiver for specified range [fromPos, toPos].
 // It makes shallow copies of objects, so be careful when changing container objects .
 func (p *XList[T]) CopyRange(fromPos int, toPos int) (*XList[T], error) {
-	return p.DeepCopyRange(fromPos, toPos, func(obj T) T {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
+	return p.deepCopyRange(fromPos, toPos, func(obj T) T {
 		return obj
 	})
 }
@@ -566,26 +626,32 @@ func (p *XList[T]) CopyRange(fromPos int, toPos int) (*XList[T], error) {
 // DeepCopy :  returns a new container with new elements of receiver.
 // It makes deep copies of objects, so you must provide a closure 'deepCopyFn' to make a deep copy of type T.
 func (p *XList[T]) DeepCopy(deepCopyFn func(T) T) *XList[T] {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
+
 	if p.isEmpty() || deepCopyFn == nil {
 		return &XList[T]{}
 	}
 
-	na, _ := p.DeepCopyRange(0, p.size-1, deepCopyFn)
+	na, _ := p.deepCopyRange(0, p.Size()-1, deepCopyFn)
 	return na
 }
 
 // DeepCopyRange : returns a new container with elements from the range [fromPos, toPos].
 // You must provide a closure 'deepCopyFn' that knows how to make a deep copy of type T.
 func (p *XList[T]) DeepCopyRange(fromPos int, toPos int, deepCopyFn func(T) T) (*XList[T], error) {
+	p.mtx.RLock()
+	defer p.mtx.RUnlock()
 
+	return p.deepCopyRange(fromPos, toPos, deepCopyFn)
+}
+
+func (p *XList[T]) deepCopyRange(fromPos int, toPos int, deepCopyFn func(T) T) (*XList[T], error) {
 	if deepCopyFn == nil {
 		return nil, ErrNoClosure
 	}
 
-	p.mtx.RLock()
-	defer p.mtx.RUnlock()
-
-	if fromPos < 0 || fromPos > p.size-1 || toPos < 0 || toPos > p.size-1 || fromPos > toPos {
+	if fromPos < 0 || fromPos > p.Size()-1 || toPos < 0 || toPos > p.Size()-1 || fromPos > toPos {
 		return nil, ErrInvalidIndex
 	}
 
@@ -617,7 +683,7 @@ func (p *XList[T]) Swap(i, j int) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	if i < 0 || j < 0 || i > p.size-1 || j > p.size-1 {
+	if i < 0 || j < 0 || i > p.Size()-1 || j > p.Size()-1 {
 		return ErrInvalidIndex
 	}
 

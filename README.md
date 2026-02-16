@@ -2,7 +2,7 @@
 
 ## Introduction
 
-`XList` is a generic, thread-safe, doubly-linked list for Go. It's a high-performance alternative to slices, optimized for frequent insertions, deletions, and reordering. The API design is inspired by the power and simplicity of `NSArray` from Apple's Cocoa framework.
+`XList` is a generic, doubly-linked list for Go. It's a high-performance alternative to slices, optimized for frequent insertions, deletions, and reordering. The API design is inspired by the power and simplicity of `NSArray` from Apple's Cocoa framework.
 
 Key features include:
 - **Rich Core API**: Full CRUD, unique element handling, and list-splicing operations.
@@ -69,6 +69,8 @@ This section provides a brief overview of the library's functionality.
 
 ### Iterators
 
+*Note: Iterator is not thread-safe; for concurrent access use your own synchronization or prefer range-based methods below.*
+
 - **Iterator**: Creates a classic iterator for sequential processing over a specified range.
 - **Reset**: Resets the iterator with a new range.
 - **SetIndex**: Sets the iterator to a specific index.
@@ -82,6 +84,8 @@ This section provides a brief overview of the library's functionality.
 - **PrevValue**: Moves to the previous element and returns its value.
 
 ### Range Iterators (Go 1.23+)
+
+*Thread-safe for reading (holds RLock internally); do not call mutating methods from within the range body.*
 
 - **All**: Returns a forward `range` iterator over the list.
 - **Backward**: Returns a reverse `range` iterator over the list.
@@ -1080,6 +1084,28 @@ if allAreEven {
 
 
 
+
+## Thread Safety
+
+All core methods of `XList` (`Append`, `DeleteAt`, `At`, `Sort`, `Find`, `Modify`, etc.) are **thread-safe** and can be called concurrently from multiple goroutines.
+
+**Range iterators** (`All`, `Backward`, `Values`, `ValuesBackward`) are also **thread-safe** for reading — they hold an internal read lock for the entire iteration. However, calling mutating methods (`Append`, `DeleteAt`, `Replace`, etc.) from within the range body will cause a **deadlock**. Use `Modify` / `ModifyRev` for thread-safe element modification.
+
+**The classic `Iterator`** is **NOT thread-safe**. It does not acquire any locks internally. If you need to use `Iterator` in a concurrent environment, you are responsible for providing your own synchronization (e.g., `sync.Mutex` or `sync.RWMutex`). For thread-safe iteration, prefer the range-based methods listed above.
+
+```go
+// Thread-safe iteration (recommended):
+for i, v := range list.All() {
+    fmt.Println(i, v)
+}
+
+// NOT thread-safe — use your own synchronization if needed:
+it := list.Iterator()
+for it.Next() {
+    val, _ := it.Value()
+    fmt.Println(val)
+}
+```
 
 ## Iterator (Sequential traversal of elements)
 ### Iterator()

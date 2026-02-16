@@ -4,6 +4,9 @@ package xlist
 
 // MarkAtIndex : mark element at specified index
 func (p *XList[T]) MarkAtIndex(index int) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
 	xObj := p.goToPosition(index)
 	if xObj != nil {
 		xObj.mark = true
@@ -12,6 +15,9 @@ func (p *XList[T]) MarkAtIndex(index int) {
 
 // UnmarkAtIndex : clear mark of element at specified index
 func (p *XList[T]) UnmarkAtIndex(index int) {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
 	xObj := p.goToPosition(index)
 	if xObj != nil {
 		xObj.mark = false
@@ -20,6 +26,9 @@ func (p *XList[T]) UnmarkAtIndex(index int) {
 
 // IsMarkedAtIndex : returns 'true' if element at specified index is marked
 func (p *XList[T]) IsMarkedAtIndex(index int) bool {
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
 	xObj := p.goToPosition(index)
 	if xObj != nil {
 		return xObj.mark

@@ -6,12 +6,12 @@ package xlist
 
 import "sort"
 
-//  ----------------
+// ----------------
 
 // goToPosition : go to object at 'pos' position
 // returns internal 'xlistObj' struct
 func (p *XList[T]) goToPosition(pos int) *xlistObj[T] {
-	if pos < 0 || pos > p.size-1 {
+	if pos < 0 || pos > p.Size()-1 {
 		return nil
 	}
 
@@ -50,7 +50,7 @@ func (p *XList[T]) getObjectsAt(pos ...int) []*xlistObj[T] {
 
 	for xobj != nil {
 		position := pos[ip]
-		if position < 0 || position > p.size-1 { // in case of position outside the range
+		if position < 0 || position > p.Size()-1 { // in case of position outside the range
 			ip++
 			if ip >= lenpos {
 				break

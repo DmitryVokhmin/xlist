@@ -34,6 +34,11 @@ func WithCount(count int) func(*RangeOptions) {
 // Each element is yielded as (index, T).
 // Options: WithPos/WithCount can limit the range.
 //
+// Thread safety: All() holds an internal read lock (RLock) for the entire iteration,
+// making it safe for concurrent use with other readers.
+// However, do NOT call mutating methods (Append, DeleteAt, Replace, etc.) from within
+// the range body — this will cause a deadlock.
+//
 // Example:
 //
 //	for i, obj := range list.All(xlist.WithPos(2), xlist.WithCount(3)) {
@@ -55,8 +60,8 @@ func (p *XList[T]) All(opt ...func(*RangeOptions)) iter.Seq2[int, T] {
 				optSet(params)
 			}
 
-			if params.index < 0 || params.index >= p.size {
-				panic(fmt.Sprintf("%v: index=%d, xlist size size=%d", ErrInvalidIndex, params.index, p.size))
+			if params.index < 0 || params.index >= p.Size() {
+				panic(fmt.Sprintf("%v: index=%d, xlist size size=%d", ErrInvalidIndex, params.index, p.Size()))
 			}
 			// avoid negative indexes
 			if params.count < 0 {
@@ -64,8 +69,8 @@ func (p *XList[T]) All(opt ...func(*RangeOptions)) iter.Seq2[int, T] {
 			}
 
 			// avoid over range
-			if (params.index + params.count) > p.size-1 {
-				params.count = p.size - params.index
+			if (params.index + params.count) > p.Size()-1 {
+				params.count = p.Size() - params.index
 			}
 
 			// second param is speculative gos thru (to get CPU cache)
@@ -94,6 +99,11 @@ func (p *XList[T]) All(opt ...func(*RangeOptions)) iter.Seq2[int, T] {
 // Each element is yielded as (index, T).
 // Options: WithPos/WithCount can limit the range.
 //
+// Thread safety: Backward() holds an internal read lock (RLock) for the entire iteration,
+// making it safe for concurrent use with other readers.
+// However, do NOT call mutating methods (Append, DeleteAt, Replace, etc.) from within
+// the range body — this will cause a deadlock.
+//
 // Example:
 //
 //	for i, obj := range list.Backward(xlist.WithPos(2), xlist.WithCount(2)) {
@@ -110,8 +120,8 @@ func (p *XList[T]) Backward(opt ...func(*RangeOptions)) iter.Seq2[int, T] {
 		defer p.mtx.RUnlock()
 
 		tmp = p.end
-		index := p.size - 1
-		count := p.size
+		index := p.Size() - 1
+		count := p.Size()
 
 		if len(opt) > 0 {
 			for _, optSet := range opt {
@@ -119,12 +129,12 @@ func (p *XList[T]) Backward(opt ...func(*RangeOptions)) iter.Seq2[int, T] {
 			}
 
 			if params.index == -1 { // if no index defined
-				params.index = p.size - 1
+				params.index = p.Size() - 1
 			}
 
 			// Validate index bounds (after -1 handling)
-			if params.index < 0 || params.index >= p.size {
-				panic(fmt.Sprintf("%v: index=%d, xlist size size=%d", ErrInvalidIndex, params.index, p.size))
+			if params.index < 0 || params.index >= p.Size() {
+				panic(fmt.Sprintf("%v: index=%d, xlist size size=%d", ErrInvalidIndex, params.index, p.Size()))
 			}
 
 			// avoid negative indexes

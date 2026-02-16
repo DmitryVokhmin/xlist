@@ -6,13 +6,12 @@ package xlist
 
 // Slice : get all collection objects as a slice
 func (p *XList[T]) Slice() []T {
-	result := make([]T, 0, p.size)
+	result := make([]T, 0, p.Size())
 
 	p.mtx.RLock()
 	defer p.mtx.RUnlock()
 
-	xobj := p.home
-	for xobj != nil {
+	for xobj := p.home; xobj != nil; xobj = xobj.next {
 		result = append(result, *xobj.obj)
 	}
 
